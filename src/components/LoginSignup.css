@@ -1,0 +1,137 @@
+/* LoginSignup.css */
+.authPage {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 20px;
+    gap: 30px;
+}
+
+.auth-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    max-width: 400px;
+    margin-bottom: 20px;
+}
+
+.authPage img {
+    width: 120px;
+    height: 120px;
+    margin: 0;
+}
+
+.toggleButtons {
+    display: flex;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 12px;
+    padding: 5px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(10px);
+}
+
+.toggleButtons button {
+    padding: 12px 30px;
+    font-size: 16px;
+    border: none;
+    cursor: pointer;
+    background: transparent;
+    border-radius: 8px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    color: #666;
+}
+
+.toggleButtons button.active {
+    background: #667eea;
+    color: white;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.toggleButtons button:hover:not(.active) {
+    background: rgba(102, 126, 234, 0.1);
+    color: #667eea;
+}
+
+.authform {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.95);
+    padding: 40px;
+    border-radius: 20px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(10px);
+    min-width: 350px;
+    max-width: 400px;
+    width: 100%;
+}
+
+.authform input,
+.authform select {
+    width: 100%;
+    padding: 15px;
+    margin-bottom: 20px;
+    border: 2px solid #e9ecef;
+    border-radius: 10px;
+    font-size: 16px;
+    transition: all 0.3s ease;
+    background: white;
+}
+
+.authform input:focus,
+.authform select:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.authform input::placeholder {
+    color: #999;
+}
+
+.authform button {
+    width: 100%;
+    padding: 15px;
+    background: #667eea;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-top: 10px;
+}
+
+.authform button:hover {
+    background: #5a6fd8;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+}
+
+.authform button:active {
+    transform: translateY(0);
+}
+
+/* Responsive Design */
+@media (max-width: 480px) {
+    .authPage {
+        padding: 15px;
+    }
+    
+    .authform {
+        padding: 30px 20px;
+        min-width: 280px;
+    }
+    
+    .toggleButtons button {
+        padding: 10px 20px;
+        font-size: 14px;
+    }
+}
+  

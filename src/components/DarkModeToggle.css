@@ -1,0 +1,40 @@
+.dark-mode-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    color: #333;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.dark-mode-toggle:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: scale(1.1);
+}
+
+.dark-mode-toggle svg {
+    font-size: 18px;
+    transition: transform 0.3s ease;
+}
+
+.dark-mode-toggle:hover svg {
+    transform: rotate(15deg);
+}
+
+/* Dark mode styles */
+.dark-mode .dark-mode-toggle {
+    background: rgba(0, 0, 0, 0.3);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.dark-mode .dark-mode-toggle:hover {
+    background: rgba(0, 0, 0, 0.5);
+} 

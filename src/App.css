@@ -1,0 +1,329 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+        'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+        sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    line-height: 1.6;
+}
+
+.App {
+    min-height: 100vh;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #667eea;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #5a6fd8;
+}
+
+/* Dark Mode Styles */
+.dark-mode {
+    --bg-primary: #1a1a1a;
+    --bg-secondary: #2d2d2d;
+    --bg-tertiary: #3d3d3d;
+    --text-primary: #ffffff;
+    --text-secondary: #b0b0b0;
+    --text-muted: #888888;
+    --border-color: #404040;
+    --shadow-color: rgba(0, 0, 0, 0.5);
+    --accent-color: #667eea;
+    --accent-hover: #5a6fd8;
+    --danger-color: #ff4757;
+    --success-color: #2ed573;
+    --warning-color: #ffa502;
+}
+
+.dark-mode * {
+    color-scheme: dark;
+}
+
+.dark-mode body {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+.dark-mode .dashboard,
+.dark-mode .project-details,
+.dark-mode .team-management,
+.dark-mode .main {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+}
+
+.dark-mode .dashboard-header,
+.dark-mode .project-header,
+.dark-mode .team-header,
+.dark-mode .main-header {
+    background: rgba(45, 45, 45, 0.95);
+    color: var(--text-primary);
+}
+
+.dark-mode .dashboard-header h1,
+.dark-mode .project-header h1,
+.dark-mode .team-header h1,
+.dark-mode .main-header h1 {
+    color: var(--text-primary);
+}
+
+.dark-mode .user-info {
+    color: var(--text-secondary);
+}
+
+.dark-mode .stat-card,
+.dark-mode .project-card,
+.dark-mode .task-card,
+.dark-mode .member-card {
+    background: var(--bg-secondary);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+.dark-mode .stat-card h3,
+.dark-mode .project-card h3,
+.dark-mode .task-card h3,
+.dark-mode .member-card h3 {
+    color: var(--text-primary);
+}
+
+.dark-mode .stat-card p,
+.dark-mode .project-card p,
+.dark-mode .task-card p,
+.dark-mode .member-card p {
+    color: var(--text-secondary);
+}
+
+.dark-mode .projects-section,
+.dark-mode .project-overview,
+.dark-mode .team-overview,
+.dark-mode .tasks-section,
+.dark-mode .team-section {
+    background: rgba(45, 45, 45, 0.95);
+}
+
+.dark-mode .section-header h2 {
+    color: var(--text-primary);
+}
+
+.dark-mode .filter-buttons {
+    background: rgba(45, 45, 45, 0.95);
+}
+
+.dark-mode .filter-buttons button {
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    border-color: var(--border-color);
+}
+
+.dark-mode .filter-buttons button.active {
+    background: var(--accent-color);
+    color: var(--text-primary);
+}
+
+.dark-mode .filter-buttons button:hover {
+    background: var(--accent-hover);
+    color: var(--text-primary);
+}
+
+.dark-mode .modal-content {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+.dark-mode .modal-header h2 {
+    color: var(--text-primary);
+}
+
+.dark-mode .form-group label {
+    color: var(--text-primary);
+}
+
+.dark-mode .form-group input,
+.dark-mode .form-group textarea,
+.dark-mode .form-group select {
+    background: var(--bg-tertiary);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+.dark-mode .form-group input:focus,
+.dark-mode .form-group textarea:focus,
+.dark-mode .form-group select:focus {
+    border-color: var(--accent-color);
+}
+
+.dark-mode .form-group input::placeholder {
+    color: var(--text-muted);
+}
+
+.dark-mode .empty-state {
+    background: rgba(45, 45, 45, 0.95);
+    color: var(--text-secondary);
+}
+
+.dark-mode .empty-state h3 {
+    color: var(--text-primary);
+}
+
+.dark-mode .empty-state p {
+    color: var(--text-secondary);
+}
+
+.dark-mode .authPage {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+}
+
+.dark-mode .authform {
+    background: rgba(45, 45, 45, 0.95);
+    color: var(--text-primary);
+}
+
+.dark-mode .toggleButtons {
+    background: rgba(45, 45, 45, 0.95);
+}
+
+.dark-mode .toggleButtons button {
+    color: var(--text-secondary);
+}
+
+.dark-mode .toggleButtons button.active {
+    background: var(--accent-color);
+    color: var(--text-primary);
+}
+
+.dark-mode .toggleButtons button:hover:not(.active) {
+    background: rgba(102, 126, 234, 0.1);
+    color: var(--accent-color);
+}
+
+.dark-mode .authform input,
+.dark-mode .authform select {
+    background: var(--bg-tertiary);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+.dark-mode .authform input:focus,
+.dark-mode .authform select:focus {
+    border-color: var(--accent-color);
+}
+
+.dark-mode .authform input::placeholder {
+    color: var(--text-muted);
+}
+
+.dark-mode .authform button {
+    background: var(--accent-color);
+    color: var(--text-primary);
+}
+
+.dark-mode .authform button:hover {
+    background: var(--accent-hover);
+}
+
+.dark-mode .meta-item {
+    background: var(--bg-tertiary);
+    border-color: var(--border-color);
+}
+
+.dark-mode .meta-item .label {
+    color: var(--text-secondary);
+}
+
+.dark-mode .meta-item .value {
+    color: var(--text-primary);
+}
+
+.dark-mode .task-meta .label {
+    color: var(--text-secondary);
+}
+
+.dark-mode .task-meta .value {
+    color: var(--text-primary);
+}
+
+.dark-mode .status-select {
+    background: var(--bg-tertiary);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+.dark-mode .status-select:focus {
+    border-color: var(--accent-color);
+}
+
+.dark-mode .no-results {
+    background: var(--bg-tertiary);
+    border-color: var(--border-color);
+    color: var(--text-secondary);
+}
+
+.dark-mode .member-item.manager {
+    background: rgba(33, 150, 243, 0.1);
+    border-color: #2196f3;
+}
+
+.dark-mode .member-card.lead {
+    background: rgba(255, 193, 7, 0.1);
+    border-color: #ffc107;
+}
+
+.dark-mode .member-card.lead .member-avatar {
+    background: #ffc107;
+    color: #333;
+}
+
+.dark-mode .member-avatar {
+    background: var(--accent-color);
+}
+
+.dark-mode .member-details .role {
+    color: var(--text-secondary);
+}
+
+.dark-mode .member-details .email {
+    color: var(--text-muted);
+}
+
+.dark-mode .info-card h3 {
+    color: var(--text-primary);
+}
+
+.dark-mode .team-members h3 {
+    color: var(--text-primary);
+}
+
+.dark-mode .team-lead-section {
+    border-bottom-color: var(--border-color);
+}
+
+.dark-mode .auth-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    max-width: 400px;
+    margin-bottom: 20px;
+}
+
+.dark-mode .auth-header .logo {
+    margin: 0;
+}
