@@ -55,7 +55,7 @@ A comprehensive task management and project collaboration tool built with React.
 
 1. **Clone the repository**
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/Rogshivam/Operations-Manager-task-manager-.git
    cd taskManagerReactjs
    ```
 
@@ -205,16 +205,16 @@ src/
 
 ## Future Enhancements
 
-- [ ] Real-time collaboration with WebSocket
-- [ ] File attachments for tasks
-- [ ] Email notifications
-- [ ] Advanced reporting and analytics
-- [ ] Calendar integration
-- [ ] Mobile app development
-- [ ] Database integration (MySQL/PostgreSQL)
-- [ ] User profile management
-- [ ] Project templates
-- [ ] Time tracking
+- [*] Real-time collaboration with WebSocket
+- [*] File attachments for tasks
+- [*] Email notifications
+- [*] Advanced reporting and analytics
+- [*] Calendar integration
+- [*] Mobile app development
+- [*] Database integration (MySQL/PostgreSQL)
+- [*] User profile management
+- [*] Project templates
+- [*] Time tracking
 
 ## License
 
@@ -222,4 +222,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Support
 
-For support and questions, please open an issue in the repository or contact the development team.
+For support and questions, please open an issue in the repository or contact the developmer.
