@@ -405,7 +405,7 @@
 /* Modal Styles */
 .modal {
     position: fixed;
-    top: 0;
+    top: 0; /* center properly */
     left: 0;
     right: 0;
     bottom: 0;
@@ -414,6 +414,10 @@
     align-items: center;
     justify-content: center;
     z-index: 1000;
+    padding: 20px; /* prevents modal from touching edges */
+    overflow-y: auto; /* allows modal to scroll if too tall */
+    overflow-x: auto; /* allows modal to scroll if too tall */
+
 }
 
 .modal-content {
@@ -426,6 +430,7 @@
     overflow-y: auto;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
 }
+
 
 .modal-header {
     display: flex;

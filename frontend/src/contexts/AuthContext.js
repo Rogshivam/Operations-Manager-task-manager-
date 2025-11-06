@@ -6,7 +6,6 @@ const AuthContext = createContext();
 
 const initialState = {
   user: null,
-  token: localStorage.getItem('token'),
   isAuthenticated: false,
   loading: true,
   error: null
@@ -15,49 +14,17 @@ const initialState = {
 const authReducer = (state, action) => {
   switch (action.type) {
     case 'AUTH_START':
-      return {
-        ...state,
-        loading: true,
-        error: null
-      };
+      return { ...state, loading: true, error: null };
     case 'AUTH_SUCCESS':
-      return {
-        ...state,
-        user: action.payload.user,
-        token: action.payload.token,
-        isAuthenticated: true,
-        loading: false,
-        error: null
-      };
+      return { ...state, user: action.payload, isAuthenticated: true, loading: false };
     case 'AUTH_FAIL':
-      return {
-        ...state,
-        user: null,
-        token: null,
-        isAuthenticated: false,
-        loading: false,
-        error: action.payload
-      };
+      return { ...state, user: null, isAuthenticated: false, loading: false, error: action.payload };
     case 'LOGOUT':
-      return {
-        ...state,
-        user: null,
-        token: null,
-        isAuthenticated: false,
-        loading: false,
-        error: null
-      };
+      return { ...state, user: null, isAuthenticated: false, loading: false, error: null };
     case 'UPDATE_USER':
-      return {
-        ...state,
-        user: action.payload,
-        loading: false
-      };
+      return { ...state, user: action.payload, loading: false };
     case 'CLEAR_ERROR':
-      return {
-        ...state,
-        error: null
-      };
+      return { ...state, error: null };
     default:
       return state;
   }
@@ -69,28 +36,12 @@ export const AuthProvider = ({ children }) => {
   // Load user on app start
   useEffect(() => {
     const loadUser = async () => {
-      const token = localStorage.getItem('token');
-      if (token) {
-        try {
-          dispatch({ type: 'AUTH_START' });
-          const response = await authAPI.getProfile();
-          dispatch({
-            type: 'AUTH_SUCCESS',
-            payload: {
-              user: response.data.user,
-              token
-            }
-          });
-        } catch (error) {
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-          dispatch({
-            type: 'AUTH_FAIL',
-            payload: 'Authentication failed'
-          });
-        }
-      } else {
-        dispatch({ type: 'AUTH_FAIL', payload: null });
+      try {
+        dispatch({ type: 'AUTH_START' });
+        const response = await authAPI.getProfile();
+        dispatch({ type: 'AUTH_SUCCESS', payload: response.data.user });
+      } catch (error) {
+        dispatch({ type: 'AUTH_FAIL', payload: 'Authentication failed' });
       }
     };
 
@@ -101,26 +52,19 @@ export const AuthProvider = ({ children }) => {
   const register = async (userData) => {
     try {
       dispatch({ type: 'AUTH_START' });
-      const response = await authAPI.register(userData);
-      
-      const { user, token } = response.data;
-      
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(user));
-      
-      dispatch({
-        type: 'AUTH_SUCCESS',
-        payload: { user, token }
-      });
-      
+      const res = await authAPI.register(userData);
+      if (res.data?.token) {
+        localStorage.setItem('token', res.data.token);
+      }
+      if (res.data?.user) {
+        localStorage.setItem('user', JSON.stringify(res.data.user));
+      }
+      dispatch({ type: 'AUTH_SUCCESS', payload: res.data.user });
       toast.success('Registration successful!');
       return { success: true };
     } catch (error) {
       const message = error.response?.data?.message || 'Registration failed';
-      dispatch({
-        type: 'AUTH_FAIL',
-        payload: message
-      });
+      dispatch({ type: 'AUTH_FAIL', payload: message });
       toast.error(message);
       return { success: false, error: message };
     }
@@ -130,52 +74,41 @@ export const AuthProvider = ({ children }) => {
   const login = async (credentials) => {
     try {
       dispatch({ type: 'AUTH_START' });
-      const response = await authAPI.login(credentials);
-      
-      const { user, token } = response.data;
-      
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(user));
-      
-      dispatch({
-        type: 'AUTH_SUCCESS',
-        payload: { user, token }
-      });
-      
+      const res = await authAPI.login(credentials);
+      if (res.data?.token) {
+        localStorage.setItem('token', res.data.token);
+      }
+      if (res.data?.user) {
+        localStorage.setItem('user', JSON.stringify(res.data.user));
+      }
+      dispatch({ type: 'AUTH_SUCCESS', payload: res.data.user });
       toast.success('Login successful!');
       return { success: true };
     } catch (error) {
       const message = error.response?.data?.message || 'Login failed';
-      dispatch({
-        type: 'AUTH_FAIL',
-        payload: message
-      });
+      dispatch({ type: 'AUTH_FAIL', payload: message });
       toast.error(message);
       return { success: false, error: message };
     }
   };
 
   // Logout user
-  const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    dispatch({ type: 'LOGOUT' });
-    toast.success('Logged out successfully');
+  const logout = async () => {
+    try {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      dispatch({ type: 'LOGOUT' });
+      toast.success('Logged out successfully');
+    } catch {
+      toast.error('Logout failed');
+    }
   };
 
   // Update user profile
   const updateProfile = async (userData) => {
     try {
       const response = await authAPI.updateProfile(userData);
-      const updatedUser = response.data.user;
-      
-      localStorage.setItem('user', JSON.stringify(updatedUser));
-      
-      dispatch({
-        type: 'UPDATE_USER',
-        payload: updatedUser
-      });
-      
+      dispatch({ type: 'UPDATE_USER', payload: response.data.user });
       toast.success('Profile updated successfully!');
       return { success: true };
     } catch (error) {
@@ -198,14 +131,10 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Clear error
-  const clearError = () => {
-    dispatch({ type: 'CLEAR_ERROR' });
-  };
+  const clearError = () => dispatch({ type: 'CLEAR_ERROR' });
 
   const value = {
     user: state.user,
-    token: state.token,
     isAuthenticated: state.isAuthenticated,
     loading: state.loading,
     error: state.error,
@@ -217,17 +146,11 @@ export const AuthProvider = ({ children }) => {
     clearError
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  if (!context) throw new Error('useAuth must be used within an AuthProvider');
   return context;
-}; 
+};
