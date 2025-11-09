@@ -53,12 +53,6 @@ export const AuthProvider = ({ children }) => {
     try {
       dispatch({ type: 'AUTH_START' });
       const res = await authAPI.register(userData);
-      if (res.data?.token) {
-        localStorage.setItem('token', res.data.token);
-      }
-      if (res.data?.user) {
-        localStorage.setItem('user', JSON.stringify(res.data.user));
-      }
       dispatch({ type: 'AUTH_SUCCESS', payload: res.data.user });
       toast.success('Registration successful!');
       return { success: true };
@@ -75,12 +69,6 @@ export const AuthProvider = ({ children }) => {
     try {
       dispatch({ type: 'AUTH_START' });
       const res = await authAPI.login(credentials);
-      if (res.data?.token) {
-        localStorage.setItem('token', res.data.token);
-      }
-      if (res.data?.user) {
-        localStorage.setItem('user', JSON.stringify(res.data.user));
-      }
       dispatch({ type: 'AUTH_SUCCESS', payload: res.data.user });
       toast.success('Login successful!');
       return { success: true };
@@ -95,8 +83,7 @@ export const AuthProvider = ({ children }) => {
   // Logout user
   const logout = async () => {
     try {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      await authAPI.logout();
       dispatch({ type: 'LOGOUT' });
       toast.success('Logged out successfully');
     } catch {
