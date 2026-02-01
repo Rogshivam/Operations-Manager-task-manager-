@@ -74,10 +74,17 @@ router.post('/register', [
     // Generate token
     const token = generateToken(user._id);
 
+    // Set httpOnly cookie
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000
+    });
+
     res.status(201).json({
       success: true,
       message: 'User registered successfully',
-      token,
       user: {
         id: user._id,
         username: user.username,
@@ -93,6 +100,22 @@ router.post('/register', [
     res.status(500).json({
       message: 'Server error during registration'
     });
+  }
+});
+
+// @route   POST /api/auth/logout
+// @desc    Logout user (clear auth cookie)
+// @access  Public
+router.post('/logout', async (req, res) => {
+  try {
+    res.clearCookie('token', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax'
+    });
+    res.json({ success: true, message: 'Logged out' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
@@ -150,10 +173,17 @@ router.post('/login', [
     // Generate token
     const token = generateToken(user._id);
 
+    // Set httpOnly cookie
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000
+    });
+
     res.json({
       success: true,
       message: 'Login successful',
-      token,
       user: {
         id: user._id,
         username: user.username,

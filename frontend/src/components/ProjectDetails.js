@@ -15,7 +15,9 @@ import DarkModeToggle from "./DarkModeToggle";
 import "./ProjectDetails.css";
 import FileUpload from "./FileUpload";
 import { tasksAPI, projectsAPI } from "../services/api";
-
+import {TaskModal} from "../modals/TaskModal";
+import {EditProjectModal} from "../modals/EditProjectModal";
+import {EditTaskModal} from "../modals/EditTaskModal";
 const normalizeProject = (p) => ({
   ...p,
   id: p.id || p._id || p.projectId,

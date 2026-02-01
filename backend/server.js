@@ -4,6 +4,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
+const cookieParser = require('cookie-parser');
 require('dotenv').config();
 // require('dotenv').config({ path: './.env' });
 
@@ -19,6 +20,7 @@ const app = express();
 // Security middleware
 app.use(helmet());
 app.use(compression());
+app.use(cookieParser());
 
 // Rate limiting
 const limiter = rateLimit({
@@ -76,13 +78,13 @@ mongoose.connect(process.env.MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
-.then(() => {
-  console.log('Connected to MongoDB');
-})
-.catch((err) => {
-  console.error('MongoDB connection error:', err);
+.then(() => console.log("Connected to MongoDB"))
+.catch(err => {
+  console.error("MongoDB error:", err.message);
   process.exit(1);
 });
+
+
 
 const PORT = process.env.PORT || 5000;
 

@@ -76,9 +76,16 @@ const projectSchema = new mongoose.Schema({
     default: false
   }
 }, {
-  timestamps: true
+  // timestamps: true
+  timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true }
 });
-
+projectSchema.virtual('tasks', {
+  ref: 'Task',          // Model to use
+  localField: '_id',    // Project._id
+  foreignField: 'project', // Task.project
+});
 // Virtual for project duration
 projectSchema.virtual('duration').get(function() {
   if (this.startDate && this.endDate) {
