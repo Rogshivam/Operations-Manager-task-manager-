@@ -94,10 +94,35 @@ const isProjectManagerOrLead = async (req, res, next) => {
 };
 
 // Check if user is project manager
+// const isProjectManager = async (req, res, next) => {
+//   try {
+//     const { projectId } = req.params;
+//     const userId = req.user._id;
+
+//     const Project = require('../models/Project');
+//     const project = await Project.findById(projectId);
+
+//     if (!project) {
+//       return res.status(404).json({ message: 'Project not found' });
+//     }
+
+//     if (project.manager.toString() !== userId.toString()) {
+//       return res.status(403).json({ message: 'Only project manager can perform this action' });
+//     }
+
+//     next();
+//   } catch (error) {
+//     console.error('Authorization error:', error);
+//     return res.status(500).json({ message: 'Server error' });
+//   }
+// };
 const isProjectManager = async (req, res, next) => {
   try {
-    const { projectId } = req.params;
+    // ✅ FIX: Use req.params.id, NOT req.params.projectId
+    const projectId = req.params.id;  // From /projects/:id/team-members
     const userId = req.user._id;
+
+    // console.log('Checking manager:', { projectId, userId }); // Debug
 
     const Project = require('../models/Project');
     const project = await Project.findById(projectId);
@@ -112,10 +137,11 @@ const isProjectManager = async (req, res, next) => {
 
     next();
   } catch (error) {
-    console.error('Authorization error:', error);
+    // console.error('Authorization error:', error);
     return res.status(500).json({ message: 'Server error' });
   }
 };
+
 
 // Check if user is task assignee or creator
 const isTaskAssigneeOrCreator = async (req, res, next) => {

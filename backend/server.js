@@ -6,7 +6,7 @@ const compression = require('compression');
 const rateLimit = require('express-rate-limit');
 const cookieParser = require('cookie-parser');
 require('dotenv').config();
-// require('dotenv').config({ path: './.env' });
+const connectDB = require('./config/database');
 
 // console.log('MONGODB_URI:', process.env.MONGODB_URI);
 const authRoutes = require('./routes/auth');
@@ -74,17 +74,7 @@ app.use('*', (req, res) => {
 // console.log("MONGODB_URI:", process.env.MONGODB_URI);
 
 // MongoDB connection
-mongoose.connect(process.env.MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
-.then(() => console.log("Connected to MongoDB"))
-.catch(err => {
-  console.error("MongoDB error:", err.message);
-  process.exit(1);
-});
-
-
+connectDB();
 
 const PORT = process.env.PORT || 5000;
 

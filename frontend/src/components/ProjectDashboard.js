@@ -7,6 +7,15 @@ import './ProjectDashboard.css';
 import logo from '../assets/TodoLogo.png';
 import { projectsAPI } from '../services/api';
 
+
+
+
+const normalizeProject = (p) => ({
+  ...p,
+  id: p.id || p._id || p.projectId,
+  tasks: (p.tasks || []).map((t) => ({ ...t, id: t.id || t._id })),
+  teamMembers: p.teamMembers || [],
+});
 const ProjectDashboard = ({ currentUser, onLogout }) => {
   const [projects, setProjects] = useState([]);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -27,44 +36,51 @@ const ProjectDashboard = ({ currentUser, onLogout }) => {
   }, [currentUser]);
 
   const loadProjects = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await projectsAPI.getAll();
-      const list = res.data?.projects || [];
-      const normalized = list.map(p => ({ ...p, id: p.id || p._id }));
-      setProjects(normalized);
-    } catch (err) {
-      console.error(err);
-      setError(err.message || 'Failed to load projects');
-    } finally {
-      setLoading(false);
-    }
+  setLoading(true);
+  setError(null);
+  try {
+    const res = await projectsAPI.getAll({ credentials: "include" });  // Add credentials
+    const list = res.data?.projects || res.data || [];
+    const normalized = list.map(normalizeProject);  // ✅ Use normalizeProject
+    setProjects(normalized);
+  } catch (err) {
+    console.error(err);
+    setError(err.message || 'Failed to load projects');
+  } finally {
+    setLoading(false);
+  }
+};
+
+
+const handleCreateProject = async (e) => { 
+  e.preventDefault();
+  if (!currentUser) return alert('You must be logged in to create a project.');
+
+  const projectPayload = {
+    name: newProject.name,
+    description: newProject.description,
+    startDate: newProject.startDate,
+    endDate: newProject.endDate,  
+    managerId: currentUser.id || currentUser._id,
+    managerName: currentUser.username,
+    teamMembers: [],
+    status: 'active'
   };
 
-  const handleCreateProject = async (e) => {
-    e.preventDefault();
-    if (!currentUser) return alert('You must be logged in to create a project.');
+  try {
+    const res = await projectsAPI.create(projectPayload, { credentials: "include" });
+    const created = res.data?.project || res.data;
+    const normalized = normalizeProject(created);  
+    setProjects(prev => [...prev, normalized]);
+    setIsCreateModalOpen(false);
+    setNewProject({ name: '', description: '', startDate: '', endDate: '' });
+  } catch (err) {
+    console.error(err);
+    alert(err.message || 'Error creating project');
+  }
+};
 
-    const projectPayload = {
-      name: newProject.name,
-      description: newProject.description,
-      startDate: newProject.startDate,
-      endDate: newProject.endDate
-    };
 
-    try {
-      const res = await projectsAPI.create(projectPayload);
-      const created = res.data?.project;
-      const normalized = { ...created, id: created.id || created._id };
-      setProjects(prev => [...prev, normalized]);
-      setIsCreateModalOpen(false);
-      setNewProject({ name: '', description: '', startDate: '', endDate: '' });
-    } catch (err) {
-      console.error(err);
-      alert(err.message || 'Error creating project');
-    }
-  };
 
   const getProjectStats = (project) => {
     const totalTasks = (project.tasks || []).length;
@@ -72,16 +88,27 @@ const ProjectDashboard = ({ currentUser, onLogout }) => {
     const pendingTasks = totalTasks - completedTasks;
     return { totalTasks, completedTasks, pendingTasks };
   };
+  // const canManageProject = (project) => {
+  //   return currentUser?.role === 'manager' && project.managerId === currentUser.id;
+  // };
 
   const canManageProject = (project) => {
-    return currentUser?.role === 'manager' && project.managerId === currentUser.id;
-  };
+  const userId = currentUser?.id || currentUser?._id;
+  const managerId = project.managerId || project.manager?._id;
+  return currentUser?.role === 'manager' && managerId === userId;
+};
 
+
+  // const canViewProject = (project) => {
+  //   return currentUser?.role === 'manager' ||
+  //     (project.teamMembers || []).some(member => member?.id === currentUser?.id) ||
+  //     project.teamLead?.id === currentUser?.id;
+  // };
   const canViewProject = (project) => {
-    return currentUser?.role === 'manager' ||
-      (project.teamMembers || []).some(member => member?.id === currentUser?.id) ||
-      project.teamLead?.id === currentUser?.id;
-  };
+  return currentUser?.role === 'manager' || 
+         (project.teamMembers || []).some(member => member.id === currentUser?.id || member === currentUser?.id) ||
+         project.teamLead?.id === currentUser?.id;
+};
 
   // show only projects the user can view
   const filteredProjects = projects.filter(project => canViewProject(project));
