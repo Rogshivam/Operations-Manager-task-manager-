@@ -29,6 +29,114 @@
   transition: all 0.2s;
   margin-left: 8px;
 }
+.edit-project-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  border-radius: 2px;
+  padding: 4px 4px;
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+/* Selection Mode */
+.project-card {
+  transition: all 0.2s ease;
+  position: relative;
+  cursor: pointer;
+}
+
+.project-card.selected {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: 3px solid #5a67d8;
+  transform: scale(1.02);
+}
+
+.selection-checkbox {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.9);
+  border: 2px solid white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.selection-header {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  background: #f7fafc;
+  padding: 8px 16px;
+  border-radius: 8px;
+  margin-right: 16px;
+}
+
+.select-cancel, .select-delete {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.select-cancel {
+  background: #edf2f7;
+  color: #4a5568;
+}
+
+.select-cancel:hover {
+  background: #e2e8f0;
+}
+
+.select-delete {
+  background: #f56565;
+  color: white;
+}
+
+.select-delete:hover {
+  background: #e53e3e;
+}
+
+.delete-confirm-body {
+  text-align: center;
+  padding: 20px;
+}
+
+.danger.primary {
+  background: #f56565 !important;
+}
+
+
+.edit-project-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.project-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 16px;
+}
+
 
 .edit-status-btn:hover {
   background: #5856eb;

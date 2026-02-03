@@ -244,6 +244,42 @@ router.put('/:id', protect, isProjectManager, [
 // @route   DELETE /api/projects/:id
 // @desc    Delete project
 // @access  Private (Project manager only)
+// router.delete('/:id', protect, isProjectManager, async (req, res) => {
+//   try {
+//     const project = await Project.findById(req.params.id);
+
+//     if (!project) {
+//       return res.status(404).json({
+//         message: 'Project not found'
+//       });
+//     }
+
+//     // Check if project has tasks
+//     const Task = require('../models/Task');
+//     const taskCount = await Task.countDocuments({ project: req.params.id });
+
+//     if (taskCount > 0) {
+//       return res.status(400).json({
+//         message: 'Cannot delete project with existing tasks. Please delete all tasks first.'
+//       });
+//     }
+
+//     await Project.findByIdAndDelete(req.params.id);
+
+//     res.json({
+//       success: true,
+//       message: 'Project deleted successfully'
+//     });
+//   } catch (error) {
+//     console.error('Delete project error:', error);
+//     res.status(500).json({
+//       message: 'Server error'
+//     });
+//   }
+// });
+// @route   DELETE /api/projects/:id
+// @desc    Delete project
+// @access  Private (Project manager only)
 router.delete('/:id', protect, isProjectManager, async (req, res) => {
   try {
     const project = await Project.findById(req.params.id);
@@ -254,22 +290,17 @@ router.delete('/:id', protect, isProjectManager, async (req, res) => {
       });
     }
 
-    // Check if project has tasks
+    // ✅ OPTION 1: AUTO-DELETE ALL TASKS (Recommended for UX)
     const Task = require('../models/Task');
-    const taskCount = await Task.countDocuments({ project: req.params.id });
-
-    if (taskCount > 0) {
-      return res.status(400).json({
-        message: 'Cannot delete project with existing tasks. Please delete all tasks first.'
-      });
-    }
-
+    await Task.deleteMany({ project: req.params.id });
+    
     await Project.findByIdAndDelete(req.params.id);
 
     res.json({
       success: true,
-      message: 'Project deleted successfully'
+      message: `Project "${project.name}" and all tasks deleted successfully`
     });
+
   } catch (error) {
     console.error('Delete project error:', error);
     res.status(500).json({
@@ -277,6 +308,7 @@ router.delete('/:id', protect, isProjectManager, async (req, res) => {
     });
   }
 });
+
 
 // @route   POST /api/projects/:id/team-members
 // @desc    Add team member to project

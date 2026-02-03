@@ -1,5 +1,5 @@
 // TeamManagement.js
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import {
   FiArrowLeft,
@@ -12,7 +12,7 @@ import {
 } from "react-icons/fi";
 import DarkModeToggle from "./DarkModeToggle";
 import "./TeamManagement.css";
-import logo from "../assets/TodoLogo.png";
+// import logo from "../assets/TodoLogo.png";
 import { projectsAPI, usersAPI } from "../services/api";
 
 
@@ -25,12 +25,13 @@ const TeamManagement = ({ currentUser, onLogout }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   // . Load project + users on mount
-  useEffect(() => {
-    if (projectId) {
-      loadProject();
-      loadAllUsers();
-    }
-  }, [projectId]);
+  // useEffect(() => {
+  //   if (projectId) {
+  //     loadProject();
+  //     loadAllUsers();
+  //   }
+  // }, [projectId]);
+
   const normalizeProject = (p) => ({
     ...p,
     id: p.id || p._id || p.projectId,
@@ -38,7 +39,19 @@ const TeamManagement = ({ currentUser, onLogout }) => {
     teamMembers: p.teamMembers || [],
   });
 
-  const loadProject = async () => {
+  // const loadProject = async () => {
+  //   setLoading(true);
+  //   try {
+  //     const res = await projectsAPI.getById(projectId, { credentials: "include" });
+  //     const loadedProject = normalizeProject(res.data?.project || res.data);
+  //     setProject(loadedProject);
+  //   } catch (err) {
+  //     console.error("Error loading project:", err);
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
+  const loadProject = useCallback(async () => {
     setLoading(true);
     try {
       const res = await projectsAPI.getById(projectId, { credentials: "include" });
@@ -49,16 +62,22 @@ const TeamManagement = ({ currentUser, onLogout }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [projectId]); //
 
-  const loadAllUsers = async () => {
+  const loadAllUsers = useCallback(async () => {
     try {
       const res = await usersAPI.getAll({ credentials: "include" });
       setAllUsers(res.data?.users || res.data || []);
     } catch (err) {
       console.error("Error loading users:", err);
     }
-  };
+  }, []);
+  useEffect(() => {
+    if (projectId) {
+      loadProject();
+      loadAllUsers();
+    }
+  }, [projectId, loadProject, loadAllUsers]);
 
   // . Add team member (API)
   // . UPDATED TeamManagement.js - Replace these 4 functions:
@@ -110,29 +129,29 @@ const TeamManagement = ({ currentUser, onLogout }) => {
   };
 
   // Assign team lead (direct update)
- // . FIXED - Send ObjectId string (matches backend expectation)
-const handleAssignTeamLead = async (memberId) => {
-  try {
-    const member = (project.teamMembers || []).find(m =>
-      (m.id || m._id) === memberId
-    );
-    if (!member) return alert("Member not found");
+  // . FIXED - Send ObjectId string (matches backend expectation)
+  const handleAssignTeamLead = async (memberId) => {
+    try {
+      const member = (project.teamMembers || []).find(m =>
+        (m.id || m._id) === memberId
+      );
+      if (!member) return alert("Member not found");
 
-    // . Send JUST the user ObjectId (backend expects this)
-    const userId = member.user?._id || memberId;
-    
-    // console.log('Assigning team lead:', { memberId, userId }); 
+      // . Send JUST the user ObjectId (backend expects this)
+      const userId = member.user?._id || memberId;
 
-    const res = await projectsAPI.update(projectId, {
-      teamLead: userId  // . ObjectId string only
-    }, { credentials: "include" });
-    
-    setProject(normalizeProject(res.data?.project || res.data));
-  } catch (err) {
-    console.error("Error assigning lead:", err);
-    alert(err.response?.data?.message || "Team lead already assigned");
-  }
-};
+      // console.log('Assigning team lead:', { memberId, userId }); 
+
+      const res = await projectsAPI.update(projectId, {
+        teamLead: userId  // . ObjectId string only
+      }, { credentials: "include" });
+
+      setProject(normalizeProject(res.data?.project || res.data));
+    } catch (err) {
+      console.error("Error assigning lead:", err);
+      alert(err.response?.data?.message || "Team lead already assigned");
+    }
+  };
 
 
   // Remove team lead (direct update)
@@ -154,12 +173,12 @@ const handleAssignTeamLead = async (memberId) => {
   // . Permission check (safe version)
   const canManageTeam = () => {
     const userId = currentUser?.id || currentUser?._id;
-    const managerId =  project?.managerId || project?.manager?._id;
+    const managerId = project?.managerId || project?.manager?._id;
     return currentUser?.role === "manager" && managerId === userId;
   };
-// const canManageTeam = () => {
-//         return currentUser.role === 'manager' && project?.managerId === currentUser.id;
-//     };
+  // const canManageTeam = () => {
+  //         return currentUser.role === 'manager' && project?.managerId === currentUser.id;
+  //     };
   // . Get available users (not already in team + search filter)
   const getAvailableUsers = () => {
     const currentMemberIds = (project?.teamMembers || []).map(member =>
@@ -182,7 +201,7 @@ const handleAssignTeamLead = async (memberId) => {
   if (!canManageTeam()) return <div>Access denied. Managers only.</div>;
 
   const availableUsers = getAvailableUsers();
-// console.log("project:", project);
+  // console.log("project:", project);
   return (
     <div className="team-management">
       {/* Header - SAME as localStorage version */}
