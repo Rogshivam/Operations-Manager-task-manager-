@@ -87,7 +87,7 @@ const ProjectDashboard = ({ currentUser, onLogout }) => {
       );
       
       setProjects(projectsWithTasks);
-      console.log("✅ Projects WITH TASKS:", projectsWithTasks);
+      // console.log("✅ Projects WITH TASKS:", projectsWithTasks);
     } catch (err) {
       console.error(err);
       setError(err.message || 'Failed to load projects');
@@ -144,7 +144,7 @@ const ProjectDashboard = ({ currentUser, onLogout }) => {
   const filteredProjects = projects.filter(canViewProject);
   const overallStats = getOverallStats(filteredProjects);
 
-  console.log('Projects loaded:', projects);
+  // console.log('Projects loaded:', projects);
 
   if (!currentUser) {
     return (
