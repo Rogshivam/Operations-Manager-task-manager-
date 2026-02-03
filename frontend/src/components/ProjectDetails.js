@@ -43,7 +43,7 @@
 //   const [isEditTaskModalOpen, setIsEditTaskModalOpen] = useState(false);
 //   const [editingTask, setEditingTask] = useState(null);
 
-//   // ✅ Load project + tasks from backend
+//   // . Load project + tasks from backend
 //   useEffect(() => {
 //     if (projectId) loadProject();
 //   }, [projectId]);
@@ -82,7 +82,7 @@
 //     }
 //   };
 
-//   // ✅ Backend API Calls (ALL localStorage functionality converted)
+//   // . Backend API Calls (ALL localStorage functionality converted)
 
 //   // Create Task (API)
 //   // const handleCreateTask = async (e) => {
@@ -125,7 +125,7 @@
 
 
 //       const res = await tasksAPI.create(payload, { credentials: "include" });
-//       // console.log('✅ TASK CREATEd:', res.data); // DEBUG
+//       // console.log('. TASK CREATEd:', res.data); // DEBUG
 
 //       await loadProject();
 //       setIsTaskModalOpen(false);
@@ -175,7 +175,7 @@
 //     }
 //   };
 
-//   // ✅ ALL Utility Functions (same as localStorage version)
+//   // . ALL Utility Functions (same as localStorage version)
 //   const getTaskStats = () => {
 //     const total = project?.tasks?.length || 0;
 //     const completed = project?.tasks?.filter(t => t.status === 'completed').length || 0;
@@ -211,14 +211,14 @@
 //       default: return '#ffa502';
 //     }
 //   };
-//   // ✅ Helper to get user display name
+//   // . Helper to get user display name
 //   const getUserName = (user) => {
 //     if (!user) return 'Unassigned';
 //     if (typeof user === 'string') return user;
 //     return `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Unassigned';
 //   };
 
-//   // ✅ Open Edit Task Modal
+//   // . Open Edit Task Modal
 //   const openEditTaskModal = (task) => {
 //     setEditingTask({
 //       id: task.id || task._id,
@@ -232,7 +232,7 @@
 //     setIsEditTaskModalOpen(true);
 //   };
 
-//   // ✅ Update Task (Full Edit)
+//   // . Update Task (Full Edit)
 //   const handleUpdateTaskFull = async (e) => {
 //     e.preventDefault();
 //     if (!editingTask || !currentUser) return;
@@ -269,7 +269,7 @@
 
 //   return (
 //     <div className="project-details">
-//       {/* ✅ SAME PERFECT UI as localStorage version */}
+//       {/* . SAME PERFECT UI as localStorage version */}
 //       <header className="project-header">
 //         <div className="header-left">
 //           <Link to={`/dashboard/${projectId}`} className="back-btn">
@@ -293,7 +293,7 @@
 //       </header>
 
 //       <div className="project-content">
-//         {/* ✅ SAME Stats Cards */}
+//         {/* . SAME Stats Cards */}
 //         <div className="project-overview">
 //           <div className="overview-stats">
 //             <div className="stat-card">
@@ -314,7 +314,7 @@
 //             </div>
 //           </div>
 
-//           {/* ✅ SAME Project Meta */}
+//           {/* . SAME Project Meta */}
 //           <div className="project-meta">
 //             <div className="meta-item">
 //               <FiCalendar />
@@ -345,7 +345,7 @@
 //           </div>
 //         </div>
 
-//         {/* ✅ SAME Tasks Section */}
+//         {/* . SAME Tasks Section */}
 //         <div className="tasks-section">
 //           <div className="section-header">
 //             <h2>Tasks</h2>
@@ -455,7 +455,7 @@
 //         </div>
 //       </div>
 
-//       {/* ✅ Inline Modals (same as localStorage version) */}
+//       {/* . Inline Modals (same as localStorage version) */}
 
 //       {isTaskModalOpen && (
 //         <div className="modal">
@@ -546,7 +546,7 @@
 //       )}
 
 //       {/* Edit Project Modal */}
-//       {/* ✅ Edit Task Modal */}
+//       {/* . Edit Task Modal */}
 //       {isEditTaskModalOpen && editingTask && (
 //         <div className="modal">
 //           <div className="modal-content">
@@ -704,7 +704,7 @@ const ProjectDetails = ({ currentUser, onLogout }) => {
   const [isEditTaskModalOpen, setIsEditTaskModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
 
-  // ✅ FIXED #2: useCallback + deps array
+  // . FIXED #2: useCallback + deps array
   const loadProject = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -739,7 +739,7 @@ const ProjectDetails = ({ currentUser, onLogout }) => {
     }
   }, [projectId]);
 
-  // ✅ FIXED #2: Proper useEffect deps
+  // . FIXED #2: Proper useEffect deps
   useEffect(() => {
     if (projectId) loadProject();
   }, [projectId, loadProject]);
@@ -794,7 +794,7 @@ const ProjectDetails = ({ currentUser, onLogout }) => {
     }
   };
 
-  // ✅ FIXED #1: Remove unused handleUpdateProject (not used in UI)
+  // . FIXED #1: Remove unused handleUpdateProject (not used in UI)
 
   // Utility Functions
   const getTaskStats = () => {
@@ -833,7 +833,7 @@ const ProjectDetails = ({ currentUser, onLogout }) => {
     }
   };
 
-  // ✅ FIXED #5: Inline getUserName usage (no separate function needed)
+  // . FIXED #5: Inline getUserName usage (no separate function needed)
   const openEditTaskModal = (task) => {
     setEditingTask({
       id: task.id || task._id,

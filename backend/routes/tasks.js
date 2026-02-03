@@ -19,7 +19,7 @@ router.post('/', protect, isProjectManagerOrLead, [
     
     const { title, description, projectId, assignedTo, priority, dueDate } = req.body;
     
-    // ✅ Now projectId exists (checked by middleware)
+    // . Now projectId exists (checked by middleware)
     const project = await Project.findById(projectId);
     if (!project) return res.status(404).json({ message: 'Project not found' });
 

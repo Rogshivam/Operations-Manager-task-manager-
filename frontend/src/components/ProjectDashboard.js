@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FiPlus, FiUsers, FiFolder, FiLogOut, FiUser } from 'react-icons/fi';
+import { FiPlus, FiUsers, FiFolder, FiLogOut, FiUser, FiEdit3 } from 'react-icons/fi'; // . Added FiEdit3
 import DarkModeToggle from './DarkModeToggle';
 import './ProjectDashboard.css';
 import logo from '../assets/TodoLogo.png';
@@ -14,6 +14,10 @@ const normalizeProject = (p) => ({
 });
 
 const ProjectDashboard = ({ currentUser, onLogout }) => {
+  // . NEW: Edit Project State
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingProject, setEditingProject] = useState(null);
+
   const [projects, setProjects] = useState([]);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newProject, setNewProject] = useState({
@@ -25,7 +29,7 @@ const ProjectDashboard = ({ currentUser, onLogout }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // ✅ 1. ALL FUNCTIONS DEFINED FIRST (No hoisting errors!)
+  // . 1. Permission Functions
   const getSingleProjectStats = (project) => {
     const tasks = project.tasks || [];
     return {
@@ -51,6 +55,16 @@ const ProjectDashboard = ({ currentUser, onLogout }) => {
     return currentUser?.role === 'manager' && managerId === userId;
   };
 
+  // . NEW: Can edit project (Manager OR TeamLead)
+  const canEditProject = (project) => {
+    const userId = currentUser?.id || currentUser?._id;
+    const managerId = project.managerId || project.manager?._id;
+    const teamLeadId = project.teamLead?._id || project.teamLead;
+    
+    return (currentUser?.role === 'manager' && managerId === userId) ||
+           (currentUser?.role === 'teamlead' && teamLeadId === userId);
+  };
+
   const canViewProject = (project) => {
     const userId = currentUser?.id || currentUser?._id;
     return currentUser?.role === 'manager' || 
@@ -60,7 +74,7 @@ const ProjectDashboard = ({ currentUser, onLogout }) => {
            (project.teamLead?._id || project.teamLead) === userId;
   };
 
-  // ✅ 2. API Functions
+  // . 2. API Functions
   const loadProjects = async () => {
     setLoading(true);
     setError(null);
@@ -87,7 +101,6 @@ const ProjectDashboard = ({ currentUser, onLogout }) => {
       );
       
       setProjects(projectsWithTasks);
-      // console.log("✅ Projects WITH TASKS:", projectsWithTasks);
     } catch (err) {
       console.error(err);
       setError(err.message || 'Failed to load projects');
@@ -134,17 +147,48 @@ const ProjectDashboard = ({ currentUser, onLogout }) => {
     }
   };
 
-  // ✅ 3. useEffect (AFTER functions defined)
+  // . NEW: Update Project Status
+  const handleUpdateProjectStatus = async (e) => {
+    e.preventDefault();
+    if (!editingProject) return;
+
+    try {
+      const res = await projectsAPI.update(editingProject.id, {
+        status: editingProject.status
+      }, { credentials: "include" });
+
+      const updated = res.data?.project || res.data;
+      
+      // Update local state
+      setProjects(prev => prev.map(p => 
+        p.id === editingProject.id ? normalizeProject(updated) : p
+      ));
+      
+      setIsEditModalOpen(false);
+      setEditingProject(null);
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.message || err.message || 'Error updating project');
+    }
+  };
+
+  // . NEW: Open Edit Modal
+  const openEditModal = (project) => {
+    setEditingProject({
+      id: project.id,
+      name: project.name,
+      status: project.status || 'active'
+    });
+    setIsEditModalOpen(true);
+  };
+
   useEffect(() => {
     if (!currentUser) return;
     loadProjects();
   }, [currentUser]);
 
-  // ✅ 4. Derived state (SAFE now)
   const filteredProjects = projects.filter(canViewProject);
   const overallStats = getOverallStats(filteredProjects);
-
-  // console.log('Projects loaded:', projects);
 
   if (!currentUser) {
     return (
@@ -265,6 +309,16 @@ const ProjectDashboard = ({ currentUser, onLogout }) => {
                         Manage Team
                       </Link>
                     )}
+                    {/* . NEW: Edit Status Button */}
+                    {canEditProject(project) && (
+                      <button 
+                        className="edit-status-btn"
+                        onClick={() => openEditModal(project)}
+                        title="Edit Project Status"
+                      >
+                        <FiEdit3 />
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -281,6 +335,54 @@ const ProjectDashboard = ({ currentUser, onLogout }) => {
         </div>
       </div>
 
+      {/* . NEW: Edit Status Modal */}
+      {isEditModalOpen && editingProject && (
+        <div className="modal">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h2>Edit {editingProject.name}</h2>
+              <button className="close-btn" onClick={() => {
+                setIsEditModalOpen(false);
+                setEditingProject(null);
+              }}>
+                ×
+              </button>
+            </div>
+            <form onSubmit={handleUpdateProjectStatus}>
+              <div className="form-group">
+                <label>Project Status</label>
+                <select
+                  value={editingProject.status}
+                  onChange={(e) => setEditingProject({
+                    ...editingProject,
+                    status: e.target.value
+                  })}
+                  required
+                >
+                  <option value="active">Active</option>
+                  <option value="paused">Paused</option>
+                  <option value="completed">Completed</option>
+                  <option value="cancelled">Cancelled</option>
+                  <option value="archived">Archived</option>
+                </select>
+              </div>
+              <div className="modal-actions">
+                <button type="button" onClick={() => {
+                  setIsEditModalOpen(false);
+                  setEditingProject(null);
+                }}>
+                  Cancel
+                </button>
+                <button type="submit" className="primary">
+                  Update Status
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Create Modal (unchanged) */}
       {isCreateModalOpen && (
         <div className="modal">
           <div className="modal-content">

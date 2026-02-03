@@ -24,7 +24,7 @@ const TeamManagement = ({ currentUser, onLogout }) => {
   const [selectedUser, setSelectedUser] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
-  // ✅ Load project + users on mount
+  // . Load project + users on mount
   useEffect(() => {
     if (projectId) {
       loadProject();
@@ -60,11 +60,11 @@ const TeamManagement = ({ currentUser, onLogout }) => {
     }
   };
 
-  // ✅ Add team member (API)
-  // ✅ UPDATED TeamManagement.js - Replace these 4 functions:
+  // . Add team member (API)
+  // . UPDATED TeamManagement.js - Replace these 4 functions:
 
   // Add team member (direct update instead of missing endpoint)
-  // ✅ FIXED - Send required role field
+  // . FIXED - Send required role field
   const handleAddTeamMember = async (e) => {
     e.preventDefault();
     if (!selectedUser) return;
@@ -72,7 +72,7 @@ const TeamManagement = ({ currentUser, onLogout }) => {
     try {
       const res = await projectsAPI.addTeamMember(projectId, {
         userId: selectedUser,
-        role: 'team_member'  // ✅ REQUIRED by backend validation
+        role: 'team_member'  // . REQUIRED by backend validation
       }, { credentials: "include" });
 
       setProject(normalizeProject(res.data?.project || res.data));
@@ -110,7 +110,7 @@ const TeamManagement = ({ currentUser, onLogout }) => {
   };
 
   // Assign team lead (direct update)
- // ✅ FIXED - Send ObjectId string (matches backend expectation)
+ // . FIXED - Send ObjectId string (matches backend expectation)
 const handleAssignTeamLead = async (memberId) => {
   try {
     const member = (project.teamMembers || []).find(m =>
@@ -118,13 +118,13 @@ const handleAssignTeamLead = async (memberId) => {
     );
     if (!member) return alert("Member not found");
 
-    // ✅ Send JUST the user ObjectId (backend expects this)
+    // . Send JUST the user ObjectId (backend expects this)
     const userId = member.user?._id || memberId;
     
     // console.log('Assigning team lead:', { memberId, userId }); 
 
     const res = await projectsAPI.update(projectId, {
-      teamLead: userId  // ✅ ObjectId string only
+      teamLead: userId  // . ObjectId string only
     }, { credentials: "include" });
     
     setProject(normalizeProject(res.data?.project || res.data));
@@ -151,7 +151,7 @@ const handleAssignTeamLead = async (memberId) => {
   };
 
 
-  // ✅ Permission check (safe version)
+  // . Permission check (safe version)
   const canManageTeam = () => {
     const userId = currentUser?.id || currentUser?._id;
     const managerId =  project?.managerId || project?.manager?._id;
@@ -160,7 +160,7 @@ const handleAssignTeamLead = async (memberId) => {
 // const canManageTeam = () => {
 //         return currentUser.role === 'manager' && project?.managerId === currentUser.id;
 //     };
-  // ✅ Get available users (not already in team + search filter)
+  // . Get available users (not already in team + search filter)
   const getAvailableUsers = () => {
     const currentMemberIds = (project?.teamMembers || []).map(member =>
       member.id || member._id || member.user?._id
@@ -290,10 +290,10 @@ const handleAssignTeamLead = async (memberId) => {
             <h3>Team Members</h3>
             <div className="members-grid">
               {(project.teamMembers || []).map((member) => {
-                // ✅ member.id works perfectly for your data
+                // . member.id works perfectly for your data
                 const memberId = member.id || member._id;
 
-                // ✅ Perfect name extraction for your structure
+                // . Perfect name extraction for your structure
                 const displayName = `${member.user.firstName} ${member.user.lastName}`.trim() ||
                   member.user.username || 'Unknown User';
 
@@ -310,7 +310,7 @@ const handleAssignTeamLead = async (memberId) => {
                       <span className="email">{member.user.email}</span>
                     </div>
                     <div className="member-actions">
-                      {/* ✅ "Make Lead" logic */}
+                      {/* . "Make Lead" logic */}
                       {canManageTeam() && !isTeamLead(memberId) && !project.teamLead && (
                         <button
                           className="assign-lead-btn"

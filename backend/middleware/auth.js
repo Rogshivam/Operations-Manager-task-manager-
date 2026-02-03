@@ -61,7 +61,7 @@ const isProjectManagerOrLead = async (req, res, next) => {
   try {
 
     
-    // ✅ FIX: Check BODY first, then params
+    // . FIX: Check BODY first, then params
     const projectId = req.body.projectId || req.params.projectId || req.params.id;
     const userId = req.user._id.toString();
 
@@ -104,7 +104,7 @@ const isProjectManagerOrLead = async (req, res, next) => {
 // Check if user is project manager
 const isProjectManager = async (req, res, next) => {
   try {
-    const projectId = req.params.id || req.body.projectId;  // ✅ Handle both
+    const projectId = req.params.id || req.body.projectId;  // . Handle both
     const userId = req.user._id.toString();
 
    
@@ -116,7 +116,7 @@ const isProjectManager = async (req, res, next) => {
       return res.status(404).json({ message: 'Project not found' });
     }
 
-    // ✅ SAFE: Handle ObjectId OR populated User object
+    // . SAFE: Handle ObjectId OR populated User object
     const managerId = project.manager;
     let managerIdString;
 
@@ -148,10 +148,10 @@ const isProjectManager = async (req, res, next) => {
 
 
 // Check if user is task assignee or creator
-// ✅ FIXED: Handle populated User objects safely
+// . FIXED: Handle populated User objects safely
 const isTaskAssigneeOrCreator = async (req, res, next) => {
   try {
-    // ✅ FIX: req.params.id (NOT taskId!)
+    // . FIX: req.params.id (NOT taskId!)
     const taskId = req.params.id;  // From /:id routes
     const userId = req.user._id.toString();
     
@@ -171,7 +171,7 @@ const isTaskAssigneeOrCreator = async (req, res, next) => {
       return res.status(404).json({ message: 'Task not found' });
     }
 
-    // ✅ SAFE User ID extraction
+    // . SAFE User ID extraction
     const getUserIdSafe = (userField) => {
       if (!userField) return null;
       if (typeof userField === 'object' && userField._id) {

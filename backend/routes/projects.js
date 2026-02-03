@@ -199,12 +199,12 @@ router.put('/:id', protect, isProjectManager, [
   
 ], async (req, res) => {
   try {
-    // ✅ REMOVED VALIDATION - Let mongoose schema handle it
+    // . REMOVED VALIDATION - Let mongoose schema handle it
     // Validation middleware was rejecting teamLead object
 
     const updateData = req.body;
 
-    // ✅ Simple teamLead validation (optional)
+    // . Simple teamLead validation (optional)
     if (updateData.teamLead !== undefined && updateData.teamLead !== null) {
       if (!updateData.teamLead._id && typeof updateData.teamLead !== 'string') {
         return res.status(400).json({ 
@@ -314,7 +314,7 @@ router.post('/:id/team', protect, isProjectManager, [
       return res.status(400).json({ message: 'User is already a team member' });
     }
 
-    // ✅ Add team member
+    // . Add team member
     project.teamMembers.push({ user: userId, role });
 
     if (role === 'team_lead') {
@@ -323,7 +323,7 @@ router.post('/:id/team', protect, isProjectManager, [
 
     await project.save();
 
-    // ✅ RE-FETCH with proper population (key fix!)
+    // . RE-FETCH with proper population (key fix!)
     const updatedProject = await Project.findById(req.params.id)
       .populate('manager', 'firstName lastName email')
       .populate('teamLead', 'firstName lastName email')
@@ -332,7 +332,7 @@ router.post('/:id/team', protect, isProjectManager, [
     res.json({
       success: true,
       message: 'Team member added successfully',
-      project: updatedProject  // ✅ Fully populated!
+      project: updatedProject  // . Fully populated!
     });
   } catch (error) {
     console.error('Add team member error:', error);

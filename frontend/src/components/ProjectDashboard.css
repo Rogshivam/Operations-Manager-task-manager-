@@ -15,6 +15,33 @@
     margin-bottom: 30px;
     backdrop-filter: blur(10px);
 }
+.edit-status-btn {
+  background: #6366f1;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  transition: all 0.2s;
+  margin-left: 8px;
+}
+
+.edit-status-btn:hover {
+  background: #5856eb;
+  transform: translateY(-1px);
+}
+
+.project-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
 
 .header-left {
     display: flex;
