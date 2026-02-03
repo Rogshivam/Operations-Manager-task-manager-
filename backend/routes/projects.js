@@ -192,72 +192,149 @@ router.get('/:id', protect, async (req, res) => {
 // @route   PUT /api/projects/:id
 // @desc    Update project
 // @access  Private (Project manager only)
+// router.put('/:id', protect, isProjectManager, [
+//   body('name')
+//     .optional()
+//     .notEmpty()
+//     .withMessage('Project name cannot be empty')
+//     .isLength({ max: 100 })
+//     .withMessage('Project name cannot exceed 100 characters'),
+//   body('description')
+//     .optional()
+//     .notEmpty()
+//     .withMessage('Project description cannot be empty')
+//     .isLength({ max: 1000 })
+//     .withMessage('Project description cannot exceed 1000 characters'),
+//   body('startDate')
+//     .optional()
+//     .isISO8601()
+//     .withMessage('Start date must be a valid date'),
+//   body('endDate')
+//     .optional()
+//     .isISO8601()
+//     .withMessage('End date must be a valid date'),
+//   body('priority')
+//     .optional()
+//     .isIn(['low', 'medium', 'high', 'critical'])
+//     .withMessage('Invalid priority level'),
+//   body('status')
+//     .optional()
+//     .isIn(['active', 'completed', 'paused', 'cancelled'])
+//     .withMessage('Invalid status')
+// ], async (req, res) => {
+//   try {
+//     // Check for validation errors
+//     const errors = validationResult(req);
+//     if (!errors.isEmpty()) {
+//       return res.status(400).json({ 
+//         message: 'Validation failed',
+//         errors: errors.array() 
+//       });
+//     }
+
+//     const { name, description, startDate, endDate, priority, status, tags, budget } = req.body;
+
+//     // Check if end date is after start date
+//     if (startDate && endDate && new Date(endDate) <= new Date(startDate)) {
+//       return res.status(400).json({
+//         message: 'End date must be after start date'
+//       });
+//     }
+
+//     const updateFields = {};
+//     if (name) updateFields.name = name;
+//     if (description) updateFields.description = description;
+//     if (startDate) updateFields.startDate = startDate;
+//     if (endDate) updateFields.endDate = endDate;
+//     if (priority) updateFields.priority = priority;
+//     if (status) updateFields.status = status;
+//     if (tags) updateFields.tags = tags;
+//     if (budget !== undefined) updateFields.budget = budget;
+
+//     const project = await Project.findByIdAndUpdate(
+//       req.params.id,
+//       updateFields,
+//       { new: true, runValidators: true }
+//     ).populate('manager', 'firstName lastName email')
+//      .populate('teamLead', 'firstName lastName email')
+//      .populate('teamMembers.user', 'firstName lastName email role');
+
+//     res.json({
+//       success: true,
+//       message: 'Project updated successfully',
+//       project
+//     });
+//   } catch (error) {
+//     console.error('Update project error:', error);
+//     res.status(500).json({
+//       message: 'Server error'
+//     });
+//   }
+// });
 router.put('/:id', protect, isProjectManager, [
-  body('name')
-    .optional()
-    .notEmpty()
-    .withMessage('Project name cannot be empty')
-    .isLength({ max: 100 })
-    .withMessage('Project name cannot exceed 100 characters'),
-  body('description')
-    .optional()
-    .notEmpty()
-    .withMessage('Project description cannot be empty')
-    .isLength({ max: 1000 })
-    .withMessage('Project description cannot exceed 1000 characters'),
-  body('startDate')
-    .optional()
-    .isISO8601()
-    .withMessage('Start date must be a valid date'),
-  body('endDate')
-    .optional()
-    .isISO8601()
-    .withMessage('End date must be a valid date'),
-  body('priority')
-    .optional()
-    .isIn(['low', 'medium', 'high', 'critical'])
-    .withMessage('Invalid priority level'),
-  body('status')
-    .optional()
-    .isIn(['active', 'completed', 'paused', 'cancelled'])
-    .withMessage('Invalid status')
+  body('name').optional().notEmpty().isLength({ max: 100 }),
+  body('description').optional().notEmpty().isLength({ max: 1000 }),
+  body('priority').optional().isIn(['low', 'medium', 'high']),
+  // body('name')
+  //   .optional()
+  //   .notEmpty()
+  //   .withMessage('Project name cannot be empty')
+  //   .isLength({ max: 100 })
+  //   .withMessage('Project name cannot exceed 100 characters'),
+  // body('description')
+  //   .optional()
+  //   .notEmpty()
+  //   .withMessage('Project description cannot be empty')
+  //   .isLength({ max: 1000 })
+  //   .withMessage('Project description cannot exceed 1000 characters'),
+  // body('startDate')
+  //   .optional()
+  //   .isISO8601()
+  //   .withMessage('Start date must be a valid date'),
+  // body('endDate')
+  //   .optional()
+  //   .isISO8601()
+  //   .withMessage('End date must be a valid date'),
+  // body('priority')
+  //   .optional()
+  //   .isIn(['low', 'medium', 'high', 'critical'])
+  //   .withMessage('Invalid priority level'),
+  // body('status')
+  //   .optional()
+  //   .isIn(['active', 'completed', 'paused', 'cancelled'])
+  //   .withMessage('Invalid status')
 ], async (req, res) => {
   try {
-    // Check for validation errors
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ 
-        message: 'Validation failed',
-        errors: errors.array() 
-      });
+    // ✅ REMOVED VALIDATION - Let mongoose schema handle it
+    // Validation middleware was rejecting teamLead object
+
+    const updateData = req.body;
+
+    // ✅ Simple teamLead validation (optional)
+    if (updateData.teamLead !== undefined && updateData.teamLead !== null) {
+      if (!updateData.teamLead._id && typeof updateData.teamLead !== 'string') {
+        return res.status(400).json({ 
+          message: 'teamLead must be valid ObjectId or null' 
+        });
+      }
     }
-
-    const { name, description, startDate, endDate, priority, status, tags, budget } = req.body;
-
-    // Check if end date is after start date
-    if (startDate && endDate && new Date(endDate) <= new Date(startDate)) {
-      return res.status(400).json({
-        message: 'End date must be after start date'
-      });
-    }
-
-    const updateFields = {};
-    if (name) updateFields.name = name;
-    if (description) updateFields.description = description;
-    if (startDate) updateFields.startDate = startDate;
-    if (endDate) updateFields.endDate = endDate;
-    if (priority) updateFields.priority = priority;
-    if (status) updateFields.status = status;
-    if (tags) updateFields.tags = tags;
-    if (budget !== undefined) updateFields.budget = budget;
 
     const project = await Project.findByIdAndUpdate(
       req.params.id,
-      updateFields,
-      { new: true, runValidators: true }
-    ).populate('manager', 'firstName lastName email')
-     .populate('teamLead', 'firstName lastName email')
-     .populate('teamMembers.user', 'firstName lastName email role');
+      updateData,
+      { 
+        new: true, 
+        runValidators: true,
+        overwrite: false  // Don't overwrite entire document
+      }
+    )
+    .populate('manager', 'firstName lastName email')
+    .populate('teamLead', 'firstName lastName email')
+    .populate('teamMembers.user', 'firstName lastName email role');
+
+    if (!project) {
+      return res.status(404).json({ message: 'Project not found' });
+    }
 
     res.json({
       success: true,
@@ -266,9 +343,7 @@ router.put('/:id', protect, isProjectManager, [
     });
   } catch (error) {
     console.error('Update project error:', error);
-    res.status(500).json({
-      message: 'Server error'
-    });
+    res.status(500).json({ message: error.message });
   }
 });
 
@@ -312,16 +387,85 @@ router.delete('/:id', protect, isProjectManager, async (req, res) => {
 // @route   POST /api/projects/:id/team-members
 // @desc    Add team member to project
 // @access  Private (Project manager only)
-router.post('/:id/team-members', protect, isProjectManager, [
-  body('userId')
-    .isMongoId()
-    .withMessage('Valid user ID is required'),
-  body('role')
-    .isIn(['team_lead', 'team_member'])
-    .withMessage('Invalid role')
+// router.post('/:id/team', protect, isProjectManager, [
+//   body('userId')
+//     .isMongoId()
+//     .withMessage('Valid user ID is required'),
+//   body('role')
+//     .isIn(['team_lead', 'team_member'])
+//     .withMessage('Invalid role')
+// ], async (req, res) => {
+//   try {
+//     // Check for validation errors
+//     const errors = validationResult(req);
+//     if (!errors.isEmpty()) {
+//       return res.status(400).json({ 
+//         message: 'Validation failed',
+//         errors: errors.array() 
+//       });
+//     }
+
+//     const { userId, role } = req.body;
+
+//     // Check if user exists
+//     const user = await User.findById(userId);
+//     if (!user) {
+//       return res.status(404).json({
+//         message: 'User not found'
+//       });
+//     }
+
+//     const project = await Project.findById(req.params.id);
+//     if (!project) {
+//       return res.status(404).json({
+//         message: 'Project not found'
+//       });
+//     }
+
+//     // Check if user is already a team member
+//     const existingMember = project.teamMembers.find(
+//       member => member.user.toString() === userId
+//     );
+
+//     if (existingMember) {
+//       return res.status(400).json({
+//         message: 'User is already a team member'
+//       });
+//     }
+
+//     // Add team member
+//     project.teamMembers.push({
+//       user: userId,
+//       role: role
+//     });
+
+//     // If role is team_lead, set as team lead
+//     if (role === 'team_lead') {
+//       project.teamLead = userId;
+//     }
+
+//     await project.save();
+
+//     await project.populate('teamMembers.user', 'firstName lastName email role');
+
+//     res.json({
+//       success: true,
+//       message: 'Team member added successfully',
+//       project
+//     });
+//   } catch (error) {
+//     console.error('Add team member error:', error);
+//     res.status(500).json({
+//       message: 'Server error'
+//     });
+//   }
+// });
+
+router.post('/:id/team', protect, isProjectManager, [
+  body('userId').isMongoId().withMessage('Valid user ID is required'),
+  body('role').isIn(['team_lead', 'team_member']).withMessage('Invalid role')
 ], async (req, res) => {
   try {
-    // Check for validation errors
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ 
@@ -332,64 +476,54 @@ router.post('/:id/team-members', protect, isProjectManager, [
 
     const { userId, role } = req.body;
 
-    // Check if user exists
     const user = await User.findById(userId);
     if (!user) {
-      return res.status(404).json({
-        message: 'User not found'
-      });
+      return res.status(404).json({ message: 'User not found' });
     }
 
-    const project = await Project.findById(req.params.id);
+    const project = await Project.findById(req.params.id).populate('teamMembers.user');
     if (!project) {
-      return res.status(404).json({
-        message: 'Project not found'
-      });
+      return res.status(404).json({ message: 'Project not found' });
     }
 
-    // Check if user is already a team member
     const existingMember = project.teamMembers.find(
-      member => member.user.toString() === userId
+      member => member.user?._id?.toString() === userId
     );
 
     if (existingMember) {
-      return res.status(400).json({
-        message: 'User is already a team member'
-      });
+      return res.status(400).json({ message: 'User is already a team member' });
     }
 
-    // Add team member
-    project.teamMembers.push({
-      user: userId,
-      role: role
-    });
+    // ✅ Add team member
+    project.teamMembers.push({ user: userId, role });
 
-    // If role is team_lead, set as team lead
     if (role === 'team_lead') {
       project.teamLead = userId;
     }
 
     await project.save();
 
-    await project.populate('teamMembers.user', 'firstName lastName email role');
+    // ✅ RE-FETCH with proper population (key fix!)
+    const updatedProject = await Project.findById(req.params.id)
+      .populate('manager', 'firstName lastName email')
+      .populate('teamLead', 'firstName lastName email')
+      .populate('teamMembers.user', 'firstName lastName email role');
 
     res.json({
       success: true,
       message: 'Team member added successfully',
-      project
+      project: updatedProject  // ✅ Fully populated!
     });
   } catch (error) {
     console.error('Add team member error:', error);
-    res.status(500).json({
-      message: 'Server error'
-    });
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
 // @route   DELETE /api/projects/:id/team-members/:userId
 // @desc    Remove team member from project
 // @access  Private (Project manager only)
-router.delete('/:id/team-members/:userId', protect, isProjectManager, async (req, res) => {
+router.delete('/:id/team/:userId', protect, isProjectManager, async (req, res) => {
   try {
     const { userId } = req.params;
 

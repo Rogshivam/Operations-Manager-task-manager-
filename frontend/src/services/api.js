@@ -47,8 +47,8 @@ export const projectsAPI = {
   create: (projectData) => api.post('/projects', projectData),
   update: (id, projectData) => api.put(`/projects/${id}`, projectData),
   delete: (id) => api.delete(`/projects/${id}`),
-  addTeamMember: (id, memberData) => api.post(`/projects/${id}/team-members`, memberData),
-  removeTeamMember: (id, userId) => api.delete(`/projects/${id}/team-members/${userId}`),
+  addTeamMember: (id, memberData) => api.post(`/projects/${id}/team`, memberData),
+  removeTeamMember: (id, userId) => api.delete(`/projects/${id}/team/${userId}`),
 };
 
 // Tasks API

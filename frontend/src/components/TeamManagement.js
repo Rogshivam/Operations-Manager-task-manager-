@@ -12,7 +12,7 @@ import {
 } from "react-icons/fi";
 import DarkModeToggle from "./DarkModeToggle";
 import "./TeamManagement.css";
-// import logo from "../assets/TodoLogo.png";
+import logo from "../assets/TodoLogo.png";
 import { projectsAPI, usersAPI } from "../services/api";
 
 
@@ -24,7 +24,6 @@ const TeamManagement = ({ currentUser, onLogout }) => {
   const [selectedUser, setSelectedUser] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
-
   // ✅ Load project + users on mount
   useEffect(() => {
     if (projectId) {
@@ -111,23 +110,30 @@ const TeamManagement = ({ currentUser, onLogout }) => {
   };
 
   // Assign team lead (direct update)
-  const handleAssignTeamLead = async (memberId) => {
-    try {
-      // Find member in current team
-      const member = (project.teamMembers || []).find(m =>
-        (m.id || m._id) === memberId
-      );
-      if (!member) return alert("Member not found");
+ // ✅ FIXED - Send ObjectId string (matches backend expectation)
+const handleAssignTeamLead = async (memberId) => {
+  try {
+    const member = (project.teamMembers || []).find(m =>
+      (m.id || m._id) === memberId
+    );
+    if (!member) return alert("Member not found");
 
-      const res = await projectsAPI.update(projectId, {
-        teamLead: memberId
-      }, { credentials: "include" });
-      setProject(normalizeProject(res.data?.project || res.data));
-    } catch (err) {
-      console.error("Error assigning lead:", err);
-      alert("Failed to assign team lead");
-    }
-  };
+    // ✅ Send JUST the user ObjectId (backend expects this)
+    const userId = member.user?._id || memberId;
+    
+    // console.log('Assigning team lead:', { memberId, userId }); 
+
+    const res = await projectsAPI.update(projectId, {
+      teamLead: userId  // ✅ ObjectId string only
+    }, { credentials: "include" });
+    
+    setProject(normalizeProject(res.data?.project || res.data));
+  } catch (err) {
+    console.error("Error assigning lead:", err);
+    alert(err.response?.data?.message || "Team lead already assigned");
+  }
+};
+
 
   // Remove team lead (direct update)
   const handleRemoveTeamLead = async () => {
@@ -148,10 +154,12 @@ const TeamManagement = ({ currentUser, onLogout }) => {
   // ✅ Permission check (safe version)
   const canManageTeam = () => {
     const userId = currentUser?.id || currentUser?._id;
-    const managerId = project?.managerId || project?.manager?._id;
+    const managerId =  project?.managerId || project?.manager?._id;
     return currentUser?.role === "manager" && managerId === userId;
   };
-
+// const canManageTeam = () => {
+//         return currentUser.role === 'manager' && project?.managerId === currentUser.id;
+//     };
   // ✅ Get available users (not already in team + search filter)
   const getAvailableUsers = () => {
     const currentMemberIds = (project?.teamMembers || []).map(member =>
@@ -174,13 +182,13 @@ const TeamManagement = ({ currentUser, onLogout }) => {
   if (!canManageTeam()) return <div>Access denied. Managers only.</div>;
 
   const availableUsers = getAvailableUsers();
-
+// console.log("project:", project);
   return (
     <div className="team-management">
       {/* Header - SAME as localStorage version */}
       <header className="team-header">
         <div className="header-left">
-          <Link to={`/project/${projectId}`} className="back-btn">
+          <Link to={`/dashboard/${projectId}`} className="back-btn">
             <FiArrowLeft /> Back to Project
           </Link>
           <div className="project-info">
@@ -195,7 +203,7 @@ const TeamManagement = ({ currentUser, onLogout }) => {
           </div>
           <DarkModeToggle />
           <button className="logout-btn" onClick={onLogout}>
-            <FiLogOut /> Logmake leadout
+            <FiLogOut /> Logout
           </button>
         </div>
       </header>
@@ -214,6 +222,7 @@ const TeamManagement = ({ currentUser, onLogout }) => {
             <div className="stat-card">
               <FiAward />
               <div>
+                <h2>{project.name}</h2>
                 <h3>{project.teamLead ? 1 : 0}</h3>
                 <p>Team Lead</p>
               </div>
@@ -229,7 +238,7 @@ const TeamManagement = ({ currentUser, onLogout }) => {
                   <FiUser />
                 </div>
                 <div className="member-details">
-                  <h4>{project.managerName}</h4>
+                  <h4>{project.manager.firstName}</h4>
                   <span className="role">Manager</span>
                 </div>
               </div>
@@ -281,9 +290,13 @@ const TeamManagement = ({ currentUser, onLogout }) => {
             <h3>Team Members</h3>
             <div className="members-grid">
               {(project.teamMembers || []).map((member) => {
-                const memberId = member.id || member._id || member.user?._id;
-                const displayName = member.username || member.user?.username ||
-                  `${member.firstName || ''} ${member.lastName || ''}`.trim();
+                // ✅ member.id works perfectly for your data
+                const memberId = member.id || member._id;
+
+                // ✅ Perfect name extraction for your structure
+                const displayName = `${member.user.firstName} ${member.user.lastName}`.trim() ||
+                  member.user.username || 'Unknown User';
+
                 return (
                   <div key={memberId} className="member-card">
                     <div className="member-avatar">
@@ -294,9 +307,10 @@ const TeamManagement = ({ currentUser, onLogout }) => {
                       <span className="role">
                         {member.role?.replace('_', ' ') || 'Team Member'}
                       </span>
-                      <span className="email">{member.email}</span>
+                      <span className="email">{member.user.email}</span>
                     </div>
                     <div className="member-actions">
+                      {/* ✅ "Make Lead" logic */}
                       {canManageTeam() && !isTeamLead(memberId) && !project.teamLead && (
                         <button
                           className="assign-lead-btn"

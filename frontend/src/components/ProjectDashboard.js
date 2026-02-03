@@ -35,14 +35,37 @@ const ProjectDashboard = ({ currentUser, onLogout }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser]);
 
-  const loadProjects = async () => {
+const loadProjects = async () => {
   setLoading(true);
   setError(null);
   try {
-    const res = await projectsAPI.getAll({ credentials: "include" });  // Add credentials
-    const list = res.data?.projects || res.data || [];
-    const normalized = list.map(normalizeProject);  // ✅ Use normalizeProject
-    setProjects(normalized);
+    // ✅ Get projects
+    const res = await projectsAPI.getAll({ credentials: "include" });
+    const projectsList = res.data?.projects || res.data || [];
+    
+    // ✅ FETCH TASKS FOR EACH PROJECT (parallel)
+    const projectsWithTasks = await Promise.all(
+      projectsList.map(async (proj) => {
+        try {
+          const tasksRes = await tasksAPI.getAll({ 
+            projectId: proj._id,
+            limit: 100  // Just for stats, not all tasks
+          }, { credentials: "include" });
+          
+          const normalized = normalizeProject({
+            ...proj,
+            tasks: tasksRes.data?.tasks || []
+          });
+          
+          return normalized;
+        } catch {
+          return normalizeProject(proj);  // Fallback without tasks
+        }
+      })
+    );
+    
+    setProjects(projectsWithTasks);
+    console.log("✅ Projects WITH TASKS:", projectsWithTasks);
   } catch (err) {
     console.error(err);
     setError(err.message || 'Failed to load projects');
@@ -50,6 +73,8 @@ const ProjectDashboard = ({ currentUser, onLogout }) => {
     setLoading(false);
   }
 };
+
+console.log('Projects loaded:', projects);
 
 
 const handleCreateProject = async (e) => { 
@@ -82,12 +107,27 @@ const handleCreateProject = async (e) => {
 
 
 
-  const getProjectStats = (project) => {
-    const totalTasks = (project.tasks || []).length;
-    const completedTasks = (project.tasks || []).filter(task => task.status === 'completed').length;
-    const pendingTasks = totalTasks - completedTasks;
-    return { totalTasks, completedTasks, pendingTasks };
+  // ✅ SINGLE PROJECT stats (Dashboard cards)
+const getSingleProjectStats = (project) => {
+  const tasks = project.tasks || [];
+  return {
+    totalTasks: tasks.length,
+    completedTasks: tasks.filter(t => t.status === 'completed').length,
+    pendingTasks: tasks.filter(t => t.status === 'pending').length,
+    inProgressTasks: tasks.filter(t => t.status === 'in_progress').length
   };
+};
+
+// ✅ OVERALL stats (top cards)
+const getOverallStats = (filteredProjects) => {
+  const allTasks = filteredProjects.flatMap(p => p.tasks || []);
+  return {
+    totalTasks: allTasks.length,
+    completedTasks: allTasks.filter(t => t.status === 'completed').length,
+    pendingTasks: allTasks.filter(t => t.status === 'pending').length
+  };
+};
+
   // const canManageProject = (project) => {
   //   return currentUser?.role === 'manager' && project.managerId === currentUser.id;
   // };
@@ -151,21 +191,39 @@ const handleCreateProject = async (e) => {
 
       <div className="dashboard-content">
         <div className="dashboard-stats">
-          <div className="stat-card">
-            <FiFolder />
-            <div>
-              <h3>{filteredProjects.length}</h3>
-              <p>Total Projects</p>
-            </div>
-          </div>
-          <div className="stat-card">
-            <FiUsers />
-            <div>
-              <h3>{filteredProjects.reduce((acc, project) => acc + ((project.teamMembers || []).length), 0)}</h3>
-              <p>Team Members</p>
-            </div>
-          </div>
-        </div>
+  <div className="stat-card">
+    <FiFolder />
+    <div>
+      <h3>{filteredProjects.length}</h3>
+      <p>Total Projects</p>
+    </div>
+  </div>
+  <div className="stat-card">
+    <FiUsers />
+    <div>
+      <h3>{filteredProjects.reduce((acc, p) => acc + (p.teamMembers?.length || 0), 0)}</h3>
+      <p>Team Members</p>
+    </div>
+  </div>
+  
+  {/* ✅ TASK STATS */}
+  <div className="stat-card">
+    <FiPlus />
+    <div>
+      <h3>{overallStats.totalTasks}</h3>
+      <p>Total Tasks</p>
+    </div>
+  </div>
+  <div className="stat-card completed">
+    <h3>{overallStats.completedTasks}</h3>
+    <p>Completed</p>
+  </div>
+  <div className="stat-card pending">
+    <h3>{overallStats.pendingTasks}</h3>
+    <p>Pending</p>
+  </div>
+</div>
+
 
         <div className="projects-section">
           <div className="section-header">
@@ -215,7 +273,7 @@ const handleCreateProject = async (e) => {
                       View Details
                     </Link>
                     {canManageProject(project) && (
-                      <Link to={`/team/${project.id}`} className="team-btn">
+                      <Link to={`/project/team/${project.id}`} className="team-btn">
                         Manage Team
                       </Link>
                     )}

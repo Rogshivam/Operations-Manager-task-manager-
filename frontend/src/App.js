@@ -20,11 +20,11 @@ const App = () => {
         <div className="App">
           {isAuthenticated ? (
             <Routes>
-              <Route path="/dashboard" element={<ProjectDashboard currentUser={user} onLogout={logout} />} />
+              <Route path="/dashboard/:projectId" element={<ProjectDashboard currentUser={user} onLogout={logout} />} />
               <Route path="/project/:projectId" element={<ProjectDetails currentUser={user} onLogout={logout} />} />
-              <Route path="/team/:projectId" element={<TeamManagement currentUser={user} onLogout={logout} />} />
+              <Route path="/project/team/:projectId" element={<TeamManagement currentUser={user} onLogout={logout} />} />
               <Route path="/tasks" element={<Main currentUser={user} onLogout={logout} />} />
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/" element={<Navigate to="/dashboard/:projectId" replace currentUser={user} onLogout={logout}/>} />
             </Routes>
           ) : (
             <LoginSignup />
