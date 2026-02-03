@@ -10,44 +10,6 @@ const router = express.Router();
 // @route   POST /api/tasks
 // @desc    Create a new task
 // @access  Private
-// router.post('/',protect,isProjectManagerOrLead, async (req, res) => {
-//   try {
-    
-    
-//     const { title, description, projectId, assignedTo, priority, dueDate, createdBy } = req.body;
-    
-//     const project = await Project.findById(projectId);
-//     if (!project) return res.status(404).json({ message: 'Project not found' });
-    
-//     const isTeamMember = project.teamMembers.some(m => m.user.toString() === assignedTo);
-//     if (!isTeamMember) return res.status(400).json({ message: 'Not a team member' });
-    
-//     // ✅ FIXED - Explicit recurringPattern value!
-//     const task = await Task.create({
-//       title,
-//       description,
-//       project: projectId,
-//       assignedTo,
-//       createdBy,
-//       priority: priority || 'medium',
-//       status: 'pending',
-//       dueDate: new Date(dueDate),  //  Required field
-//       recurringPattern: 'none',    // THIS WAS MISSING!
-//       isRecurring: false,          // Related field
-//       estimatedHours: 0,
-//       actualHours: 0,
-//       tags: []
-//     });
-    
-//     // console.log(' TASK CREATED:', task._id);
-//     res.status(201).json({ success: true, task });
-    
-//   } catch (error) {
-//     console.error('ERROR:', error.message);
-//     res.status(500).json({ message: error.message });
-//   }
-// });
-
 
 // routes/tasks.js - FULLY WORKING WITH AUTH
 router.post('/', protect, isProjectManagerOrLead, [

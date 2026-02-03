@@ -1,14 +1,10 @@
-// ProjectDashboard.js
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FiPlus, FiUsers, FiFolder, FiLogOut, FiUser } from 'react-icons/fi';
 import DarkModeToggle from './DarkModeToggle';
 import './ProjectDashboard.css';
 import logo from '../assets/TodoLogo.png';
-import { projectsAPI } from '../services/api';
-
-
-
+import { projectsAPI, tasksAPI } from '../services/api';
 
 const normalizeProject = (p) => ({
   ...p,
@@ -16,6 +12,7 @@ const normalizeProject = (p) => ({
   tasks: (p.tasks || []).map((t) => ({ ...t, id: t.id || t._id })),
   teamMembers: p.teamMembers || [],
 });
+
 const ProjectDashboard = ({ currentUser, onLogout }) => {
   const [projects, setProjects] = useState([]);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -28,130 +25,126 @@ const ProjectDashboard = ({ currentUser, onLogout }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // load projects when currentUser changes
+  // ✅ 1. ALL FUNCTIONS DEFINED FIRST (No hoisting errors!)
+  const getSingleProjectStats = (project) => {
+    const tasks = project.tasks || [];
+    return {
+      totalTasks: tasks.length,
+      completedTasks: tasks.filter(t => t.status === 'completed').length,
+      pendingTasks: tasks.filter(t => t.status === 'pending').length,
+      inProgressTasks: tasks.filter(t => t.status === 'in_progress').length
+    };
+  };
+
+  const getOverallStats = (filteredProjects) => {
+    const allTasks = filteredProjects.flatMap(p => p.tasks || []);
+    return {
+      totalTasks: allTasks.length,
+      completedTasks: allTasks.filter(t => t.status === 'completed').length,
+      pendingTasks: allTasks.filter(t => t.status === 'pending').length
+    };
+  };
+
+  const canManageProject = (project) => {
+    const userId = currentUser?.id || currentUser?._id;
+    const managerId = project.managerId || project.manager?._id;
+    return currentUser?.role === 'manager' && managerId === userId;
+  };
+
+  const canViewProject = (project) => {
+    const userId = currentUser?.id || currentUser?._id;
+    return currentUser?.role === 'manager' || 
+           (project.teamMembers || []).some(member => 
+             (member.id || member._id || member.user?._id) === userId
+           ) ||
+           (project.teamLead?._id || project.teamLead) === userId;
+  };
+
+  // ✅ 2. API Functions
+  const loadProjects = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await projectsAPI.getAll({ credentials: "include" });
+      const projectsList = res.data?.projects || res.data || [];
+      
+      const projectsWithTasks = await Promise.all(
+        projectsList.map(async (proj) => {
+          try {
+            const tasksRes = await tasksAPI.getAll({ 
+              projectId: proj._id,
+              limit: 100
+            }, { credentials: "include" });
+            
+            return normalizeProject({
+              ...proj,
+              tasks: tasksRes.data?.tasks || []
+            });
+          } catch {
+            return normalizeProject(proj);
+          }
+        })
+      );
+      
+      setProjects(projectsWithTasks);
+      console.log("✅ Projects WITH TASKS:", projectsWithTasks);
+    } catch (err) {
+      console.error(err);
+      setError(err.message || 'Failed to load projects');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateProject = async (e) => {
+    e.preventDefault();
+    if (!currentUser) return alert('You must be logged in to create a project.');
+
+    const projectPayload = {
+      name: newProject.name,
+      description: newProject.description,
+      startDate: newProject.startDate,
+      endDate: newProject.endDate,
+      managerId: currentUser.id || currentUser._id,
+      managerName: currentUser.username,
+      teamMembers: [],
+      status: 'active'
+    };
+
+    try {
+      const res = await projectsAPI.create(projectPayload, { credentials: "include" });
+      const created = res.data?.project || res.data;
+      
+      const tasksRes = await tasksAPI.getAll({ 
+        projectId: created._id,
+        limit: 100 
+      }, { credentials: "include" });
+      
+      const normalized = normalizeProject({
+        ...created,
+        tasks: tasksRes.data?.tasks || []
+      });
+      
+      setProjects(prev => [normalized, ...prev]);
+      setIsCreateModalOpen(false);
+      setNewProject({ name: '', description: '', startDate: '', endDate: '' });
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.message || err.message || 'Error creating project');
+    }
+  };
+
+  // ✅ 3. useEffect (AFTER functions defined)
   useEffect(() => {
     if (!currentUser) return;
     loadProjects();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser]);
 
-const loadProjects = async () => {
-  setLoading(true);
-  setError(null);
-  try {
-    // ✅ Get projects
-    const res = await projectsAPI.getAll({ credentials: "include" });
-    const projectsList = res.data?.projects || res.data || [];
-    
-    // ✅ FETCH TASKS FOR EACH PROJECT (parallel)
-    const projectsWithTasks = await Promise.all(
-      projectsList.map(async (proj) => {
-        try {
-          const tasksRes = await tasksAPI.getAll({ 
-            projectId: proj._id,
-            limit: 100  // Just for stats, not all tasks
-          }, { credentials: "include" });
-          
-          const normalized = normalizeProject({
-            ...proj,
-            tasks: tasksRes.data?.tasks || []
-          });
-          
-          return normalized;
-        } catch {
-          return normalizeProject(proj);  // Fallback without tasks
-        }
-      })
-    );
-    
-    setProjects(projectsWithTasks);
-    console.log("✅ Projects WITH TASKS:", projectsWithTasks);
-  } catch (err) {
-    console.error(err);
-    setError(err.message || 'Failed to load projects');
-  } finally {
-    setLoading(false);
-  }
-};
+  // ✅ 4. Derived state (SAFE now)
+  const filteredProjects = projects.filter(canViewProject);
+  const overallStats = getOverallStats(filteredProjects);
 
-console.log('Projects loaded:', projects);
-
-
-const handleCreateProject = async (e) => { 
-  e.preventDefault();
-  if (!currentUser) return alert('You must be logged in to create a project.');
-
-  const projectPayload = {
-    name: newProject.name,
-    description: newProject.description,
-    startDate: newProject.startDate,
-    endDate: newProject.endDate,  
-    managerId: currentUser.id || currentUser._id,
-    managerName: currentUser.username,
-    teamMembers: [],
-    status: 'active'
-  };
-
-  try {
-    const res = await projectsAPI.create(projectPayload, { credentials: "include" });
-    const created = res.data?.project || res.data;
-    const normalized = normalizeProject(created);  
-    setProjects(prev => [...prev, normalized]);
-    setIsCreateModalOpen(false);
-    setNewProject({ name: '', description: '', startDate: '', endDate: '' });
-  } catch (err) {
-    console.error(err);
-    alert(err.message || 'Error creating project');
-  }
-};
-
-
-
-  // ✅ SINGLE PROJECT stats (Dashboard cards)
-const getSingleProjectStats = (project) => {
-  const tasks = project.tasks || [];
-  return {
-    totalTasks: tasks.length,
-    completedTasks: tasks.filter(t => t.status === 'completed').length,
-    pendingTasks: tasks.filter(t => t.status === 'pending').length,
-    inProgressTasks: tasks.filter(t => t.status === 'in_progress').length
-  };
-};
-
-// ✅ OVERALL stats (top cards)
-const getOverallStats = (filteredProjects) => {
-  const allTasks = filteredProjects.flatMap(p => p.tasks || []);
-  return {
-    totalTasks: allTasks.length,
-    completedTasks: allTasks.filter(t => t.status === 'completed').length,
-    pendingTasks: allTasks.filter(t => t.status === 'pending').length
-  };
-};
-
-  // const canManageProject = (project) => {
-  //   return currentUser?.role === 'manager' && project.managerId === currentUser.id;
-  // };
-
-  const canManageProject = (project) => {
-  const userId = currentUser?.id || currentUser?._id;
-  const managerId = project.managerId || project.manager?._id;
-  return currentUser?.role === 'manager' && managerId === userId;
-};
-
-
-  // const canViewProject = (project) => {
-  //   return currentUser?.role === 'manager' ||
-  //     (project.teamMembers || []).some(member => member?.id === currentUser?.id) ||
-  //     project.teamLead?.id === currentUser?.id;
-  // };
-  const canViewProject = (project) => {
-  return currentUser?.role === 'manager' || 
-         (project.teamMembers || []).some(member => member.id === currentUser?.id || member === currentUser?.id) ||
-         project.teamLead?.id === currentUser?.id;
-};
-
-  // show only projects the user can view
-  const filteredProjects = projects.filter(project => canViewProject(project));
+  console.log('Projects loaded:', projects);
 
   if (!currentUser) {
     return (
@@ -179,62 +172,59 @@ const getOverallStats = (filteredProjects) => {
         <div className="header-right">
           <div className="user-info">
             <FiUser />
-            <span>{currentUser.username} ({currentUser.role.replace('_', ' ')})</span>
+            <span>{currentUser.username} ({currentUser.role?.replace('_', ' ')})</span>
           </div>
           <DarkModeToggle />
           <button className="logout-btn" onClick={onLogout}>
-            <FiLogOut />
-            Logout
+            <FiLogOut /> Logout
           </button>
         </div>
       </header>
 
       <div className="dashboard-content">
         <div className="dashboard-stats">
-  <div className="stat-card">
-    <FiFolder />
-    <div>
-      <h3>{filteredProjects.length}</h3>
-      <p>Total Projects</p>
-    </div>
-  </div>
-  <div className="stat-card">
-    <FiUsers />
-    <div>
-      <h3>{filteredProjects.reduce((acc, p) => acc + (p.teamMembers?.length || 0), 0)}</h3>
-      <p>Team Members</p>
-    </div>
-  </div>
-  
-  {/* ✅ TASK STATS */}
-  <div className="stat-card">
-    <FiPlus />
-    <div>
-      <h3>{overallStats.totalTasks}</h3>
-      <p>Total Tasks</p>
-    </div>
-  </div>
-  <div className="stat-card completed">
-    <h3>{overallStats.completedTasks}</h3>
-    <p>Completed</p>
-  </div>
-  <div className="stat-card pending">
-    <h3>{overallStats.pendingTasks}</h3>
-    <p>Pending</p>
-  </div>
-</div>
-
+          <div className="stat-card">
+            <FiFolder />
+            <div>
+              <h3>{filteredProjects.length}</h3>
+              <p>Total Projects</p>
+            </div>
+          </div>
+          <div className="stat-card">
+            <FiUsers />
+            <div>
+              <h3>{filteredProjects.reduce((acc, p) => acc + (p.teamMembers?.length || 0), 0)}</h3>
+              <p>Team Members</p>
+            </div>
+          </div>
+          
+          <div className="stat-card">
+            <FiPlus />
+            <div>
+              <h3>{overallStats.totalTasks}</h3>
+              <p>Total Tasks</p>
+            </div>
+          </div>
+          <div className="stat-card completed">
+            <div>
+              <h3>{overallStats.completedTasks}</h3>
+              <p>Completed</p>
+            </div>
+          </div>
+          <div className="stat-card pending">
+            <div>
+              <h3>{overallStats.pendingTasks}</h3>
+              <p>Pending</p>
+            </div>
+          </div>
+        </div>
 
         <div className="projects-section">
           <div className="section-header">
             <h2>My Projects</h2>
             {currentUser.role === 'manager' && (
-              <button
-                className="create-project-btn"
-                onClick={() => setIsCreateModalOpen(true)}
-              >
-                <FiPlus />
-                Create Project
+              <button className="create-project-btn" onClick={() => setIsCreateModalOpen(true)}>
+                <FiPlus /> Create Project
               </button>
             )}
           </div>
@@ -244,14 +234,12 @@ const getOverallStats = (filteredProjects) => {
 
           <div className="projects-grid">
             {filteredProjects.map(project => {
-              const stats = getProjectStats(project);
+              const stats = getSingleProjectStats(project);
               return (
                 <div key={project.id} className="project-card">
                   <div className="project-header">
                     <h3>{project.name}</h3>
-                    <span className={`status ${project.status}`}>
-                      {project.status}
-                    </span>
+                    <span className={`status ${project.status}`}>{project.status}</span>
                   </div>
                   <p className="project-description">{project.description}</p>
                   <div className="project-stats">
@@ -298,10 +286,7 @@ const getOverallStats = (filteredProjects) => {
           <div className="modal-content">
             <div className="modal-header">
               <h2>Create New Project</h2>
-              <button
-                className="close-btn"
-                onClick={() => setIsCreateModalOpen(false)}
-              >
+              <button className="close-btn" onClick={() => setIsCreateModalOpen(false)}>
                 ×
               </button>
             </div>
