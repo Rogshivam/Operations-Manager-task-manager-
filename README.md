@@ -39,7 +39,7 @@ A comprehensive task management and project collaboration tool built with React.
 ## Technology Stack
 
 - **Frontend**: React 18.3.1
-- **Routing**: React Router DOM 6.8.0
+- **Routing**: React Router DOM 6.8.0           
 - **Icons**: React Icons 4.8.0
 - **Styling**: CSS3 with modern design patterns
 - **Storage**: Local Storage for data persistence
