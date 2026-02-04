@@ -1,6 +1,6 @@
 # Project Collaboration Task Management System
 
-A comprehensive task management and project collaboration tool built with React. This application facilitates efficient project management with role-based access control, team collaboration, and real-time task tracking.
+A comprehensive task management and project collaboration tool built with MERN Stack. This application facilitates efficient project management with role-based access control, team collaboration, and real-time task tracking.
 
 ## Features
 
@@ -172,16 +172,16 @@ src/
 
 ### Role-Based Permissions
 
-| Feature | Manager | Team Lead | Team Member |
-|---------|---------|-----------|-------------|
-| Create Projects | ✅ | ❌ | ❌ |
-| Add Team Members | ✅ | ❌ | ❌ |
-| Assign Team Lead | ✅ | ❌ | ❌ |
-| Create Tasks | ✅ | ✅ | ❌ |
-| Assign Tasks | ✅ | ✅ | ❌ |
-| Update Task Status | ✅ | ✅ | ✅ (own tasks) |
-| Delete Tasks | ✅ | ✅ | ❌ |
-| View All Projects | ✅ | ✅ (assigned) | ✅ (assigned) |
+|    Feature        |      Manager|    Team Lead   | Team Member     |
+|-------------------|-------------|----------------|-----------------|
+| Create Projects   |      ✅     |       ❌      |     ❌         |
+| Add Team Members  |      ✅     |       ❌      |     ❌         |
+| Assign Team Lead  |      ✅     |       ❌      |     ❌         |
+| Create Tasks      |      ✅     |       ✅      |     ❌         |
+| Assign Tasks      |      ✅     |       ✅      |     ❌         |
+| Update Task Status|      ✅     |       ✅      | ✅ (own tasks) |
+| Delete Tasks      |      ✅     |       ✅      |     ❌         |
+| View All Projects |      ✅     | ✅ (assigned) | ✅ (assigned)  |
 
 ### Task Status Workflow
 
