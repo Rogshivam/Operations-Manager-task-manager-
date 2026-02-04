@@ -25,11 +25,21 @@ app.use(compression());
 app.use(cookieParser());
 
 // . Rate limiting (NOW works with real IPs)
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100 // limit each IP to 100 requests per windowMs
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 300, // safer for free tier
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => req.path === '/api/health',
+  handler: (req, res) => {
+    res.status(429).json({
+      message: 'Too many requests. Please slow down.',
+      retryAfter: '15 minutes'
+    });
+  }
 });
-app.use(limiter);
+
+app.use('/api', apiLimiter);
 
 // . CORS configuration
 app.use(cors({

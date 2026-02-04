@@ -15,6 +15,7 @@ import DarkModeToggle from "./DarkModeToggle";
 import "./ProjectDetails.css";
 import { tasksAPI, projectsAPI } from "../services/api";
 
+
 const normalizeProject = (p) => ({
   ...p,
   id: p.id || p._id || p.projectId,
@@ -22,11 +23,20 @@ const normalizeProject = (p) => ({
   teamMembers: p.teamMembers || [],
 });
 
+
 const ProjectDetails = ({ currentUser, onLogout }) => {
   const { projectId } = useParams();
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+
+
+  // Selection State (SAME as Dashboard)
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedTasks, setSelectedTasks] = useState([]);
+  const [longPressTimer, setLongPressTimer] = useState(null);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
   // Task/project editing state
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
@@ -37,92 +47,12 @@ const ProjectDetails = ({ currentUser, onLogout }) => {
     priority: 'medium',
     dueDate: ''
   });
-  const [editProject, setEditProject] = useState({});
+  // const [editProject, setEditProject] = useState({});
   // Task editing state
   const [isEditTaskModalOpen, setIsEditTaskModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
-  const [selectionMode, setSelectionMode] = useState(false);
-  const [selectedTasks, setSelectedTasks] = useState([]);
-  const [longPressTimer, setLongPressTimer] = useState(null);
-  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
-  // useCallback + deps array
-  const loadProject = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const projectRes = await projectsAPI.getById(projectId, { credentials: "include" });
-      const proj = normalizeProject(projectRes.data?.project || projectRes.data);
-
-      // Fetch tasks if not included in project
-      if (!proj.tasks || proj.tasks.length === 0) {
-        try {
-          const tasksRes = await tasksAPI.getAll({ projectId }, { credentials: "include" });
-          proj.tasks = (tasksRes?.data?.tasks || tasksRes?.data || []).map(
-            (t) => ({ ...t, id: t.id || t._id })
-          );
-        } catch {
-          // ignore
-        }
-      }
-
-      setProject(proj);
-      setEditProject({
-        name: proj.name || "",
-        description: proj.description || "",
-        startDate: proj.startDate || "",
-        endDate: proj.endDate || "",
-      });
-    } catch (err) {
-      console.error(err);
-      setError(err.message || "Failed to load project");
-    } finally {
-      setLoading(false);
-    }
-  }, [projectId]);
-
-  // . FIXED #2: Proper useEffect deps
-  useEffect(() => {
-    if (projectId) loadProject();
-  }, [projectId, loadProject]);
-
-  // Create Task (API)
-  const handleCreateTask = async (e) => {
-    e.preventDefault();
-    if (!currentUser) return alert("You must be logged in.");
-
-    try {
-      const payload = {
-        title: newTask.title,
-        description: newTask.description,
-        projectId: project.id,
-        assignedTo: newTask.assignedTo,
-        priority: newTask.priority,
-        dueDate: newTask.dueDate || undefined,
-        status: newTask.status || 'pending',
-        createdBy: currentUser.id || currentUser._id,
-      };
-
-      await tasksAPI.create(payload, { credentials: "include" });
-      await loadProject();
-      setIsTaskModalOpen(false);
-      setNewTask({ title: '', description: '', assignedTo: '', priority: 'medium', dueDate: '' });
-    } catch (err) {
-      console.error('❌ ERROR:', err.response?.data || err.message);
-      alert(err.response?.data?.message || "Failed to create task");
-    }
-  };
-
-  // Update Task (API) - Quick status update
-  const handleUpdateTask = async (taskId, updates) => {
-    try {
-      await tasksAPI.update(taskId, updates, { credentials: "include" });
-      await loadProject();
-    } catch (err) {
-      console.error(err);
-      alert("Failed to update task");
-    }
-  };
+  // Task Selection Functions (IDENTICAL to Dashboard)
   const handleLongPressStart = useCallback((taskId) => {
     const timer = setTimeout(() => {
       setSelectionMode(true);
@@ -149,25 +79,7 @@ const ProjectDetails = ({ currentUser, onLogout }) => {
         : [...prev, taskId]
     );
   }, [selectionMode]);
-
-  const clearSelection = useCallback(() => {
-    setSelectedTasks([]);
-    setSelectionMode(false);
-    setLongPressTimer(null);
-  }, []);
-
-  // Delete Task (API)
-  const handleDeleteTask = async (taskId) => {
-    if (!window.confirm("Delete this task?")) return;
-    try {
-      await tasksAPI.delete(taskId, { credentials: "include" });
-      await loadProject();
-    } catch (err) {
-      console.error(err);
-      alert("Failed to delete task");
-    }
-  };
-  // Bulk Delete Tasks
+  // ✅ NEW: Bulk Delete Tasks
   const handleBulkDeleteTasks = async () => {
     if (selectedTasks.length === 0) return;
 
@@ -186,7 +98,114 @@ const ProjectDetails = ({ currentUser, onLogout }) => {
     }
   };
 
+  // Single task delete
+  const handleDeleteTask = async (taskId) => {
+    if (!window.confirm("Delete this task?")) return;
+    try {
+      await tasksAPI.delete(taskId, { credentials: "include" });
+      await loadProject();
+    } catch (err) {
+      console.error(err);
+      alert("Failed to delete task");
+    }
+  };
+
+  const clearSelection = useCallback(() => {
+    setSelectedTasks([]);
+    setSelectionMode(false);
+    setLongPressTimer(null);
+  }, []);
+  //  useCallback + deps array
+  const loadProject = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const projectRes = await projectsAPI.getById(projectId, { credentials: "include" });
+      const proj = normalizeProject(projectRes.data?.project || projectRes.data);
+
+
+      // Fetch tasks if not included in project
+      if (!proj.tasks || proj.tasks.length === 0) {
+        try {
+          const tasksRes = await tasksAPI.getAll({ projectId }, { credentials: "include" });
+          proj.tasks = (tasksRes?.data?.tasks || tasksRes?.data || []).map(
+            (t) => ({ ...t, id: t.id || t._id })
+          );
+        } catch {
+          // ignore
+        }
+      }
+
+
+      setProject(proj);
+      // setEditProject({
+      //   name: proj.name || "",
+      //   description: proj.description || "",
+      //   startDate: proj.startDate || "",
+      //   endDate: proj.endDate || "",
+      // });
+    } catch (err) {
+      console.error(err);
+      setError(err.message || "Failed to load project");
+    } finally {
+      setLoading(false);
+    }
+  }, [projectId]);
+
+
+  // . FIXED #2: Proper useEffect deps
+  useEffect(() => {
+    if (projectId) loadProject();
+  }, [projectId, loadProject]);
+
+
+  // Create Task (API)
+  const handleCreateTask = async (e) => {
+    e.preventDefault();
+    if (!currentUser) return alert("You must be logged in.");
+
+
+    try {
+      const payload = {
+        title: newTask.title,
+        description: newTask.description,
+        projectId: project.id,
+        assignedTo: newTask.assignedTo,
+        priority: newTask.priority,
+        dueDate: newTask.dueDate || undefined,
+        status: newTask.status || 'pending',
+        createdBy: currentUser.id || currentUser._id,
+      };
+
+
+      await tasksAPI.create(payload, { credentials: "include" });
+      await loadProject();
+      setIsTaskModalOpen(false);
+      setNewTask({ title: '', description: '', assignedTo: '', priority: 'medium', dueDate: '' });
+    } catch (err) {
+      console.error('❌ ERROR:', err.response?.data || err.message);
+      alert(err.response?.data?.message || "Failed to create task");
+    }
+  };
+
+
+  // Update Task (API) - Quick status update
+  const handleUpdateTask = async (taskId, updates) => {
+    try {
+      await tasksAPI.update(taskId, updates, { credentials: "include" });
+      await loadProject();
+    } catch (err) {
+      console.error(err);
+      alert("Failed to update task");
+    }
+  };
+
+
+
+
+
   // . FIXED #1: Remove unused handleUpdateProject (not used in UI)
+
 
   // Utility Functions
   const getTaskStats = () => {
@@ -197,15 +216,18 @@ const ProjectDetails = ({ currentUser, onLogout }) => {
     return { total, completed, pending, inProgress };
   };
 
+
   const canManageProject = () => {
     return currentUser?.role === 'manager' &&
       (project?.manager?._id === currentUser?.id ||
         project?.managerId === currentUser?.id);
   };
 
+
   const canAssignTasks = () => {
     return currentUser?.role === 'team_lead' || canManageProject();
   };
+
 
   const getPriorityColor = (priority) => {
     switch (priority) {
@@ -216,6 +238,7 @@ const ProjectDetails = ({ currentUser, onLogout }) => {
     }
   };
 
+
   const getStatusColor = (status) => {
     switch (status) {
       case 'completed': return '#2ed573';
@@ -224,6 +247,7 @@ const ProjectDetails = ({ currentUser, onLogout }) => {
       default: return '#ffa502';
     }
   };
+
 
   // . FIXED #5: Inline getUserName usage (no separate function needed)
   const openEditTaskModal = (task) => {
@@ -239,10 +263,12 @@ const ProjectDetails = ({ currentUser, onLogout }) => {
     setIsEditTaskModalOpen(true);
   };
 
+
   // Update Task (Full Edit)
   const handleUpdateTaskFull = async (e) => {
     e.preventDefault();
     if (!editingTask || !currentUser) return;
+
 
     try {
       const payload = {
@@ -254,6 +280,7 @@ const ProjectDetails = ({ currentUser, onLogout }) => {
         dueDate: editingTask.dueDate || undefined,
       };
 
+
       await tasksAPI.update(editingTask.id, payload, { credentials: "include" });
       await loadProject();
       setIsEditTaskModalOpen(false);
@@ -264,17 +291,19 @@ const ProjectDetails = ({ currentUser, onLogout }) => {
     }
   };
 
+
   // Render states
   if (loading) return <div className="loading">Loading project...</div>;
   if (error) return <div className="loading error">Error: {error}</div>;
   if (!project) return <div className="loading">Project not found</div>;
 
+
   const stats = getTaskStats();
   //  console.log("project detail:", project);
 
+
   return (
     <div className="project-details">
-      {/* ✅ NEW: Selection Header */}
       <header className="project-header">
         <div className="header-left">
           <Link to={`/dashboard/${projectId}`} className="back-btn">
@@ -310,120 +339,202 @@ const ProjectDetails = ({ currentUser, onLogout }) => {
         </div>
       </header>
 
-      {/* ... existing project overview */}
 
-      <div className="tasks-section">
-        <div className="section-header">
-          <h2>Tasks</h2>
-          <div className="header-actions">
-            {canAssignTasks() && !selectionMode && (
-              <button className="create-task-btn" onClick={() => setIsTaskModalOpen(true)}>
-                <FiPlus /> Add Task
-              </button>
-            )}
+      <div className="project-content">
+        <div className="project-overview">
+          <div className="overview-stats">
+            <div className="stat-card">
+              <h3>{stats.total}</h3>
+              <p>Total Tasks</p>
+            </div>
+            <div className="stat-card completed">
+              <h3>{stats.completed}</h3>
+              <p>Completed</p>
+            </div>
+            <div className="stat-card in-progress">
+              <h3>{stats.inProgress}</h3>
+              <p>In Progress</p>
+            </div>
+            <div className="stat-card pending">
+              <h3>{stats.pending}</h3>
+              <p>Pending</p>
+            </div>
+          </div>
+
+
+          <div className="project-meta">
+            <div className="meta-item">
+              <FiCalendar />
+              <div>
+                <span className="label">Timeline</span>
+                <span className="value">
+                  {new Date(project.startDate).toLocaleDateString()} - {new Date(project.endDate).toLocaleDateString()}
+                </span>
+              </div>
+            </div>
+            <div className="meta-item">
+              <FiUsers />
+              <div>
+                <span className="label">Team Members</span>
+                <span className="value">{(project.teamMembers || []).length}</span>
+              </div>
+            </div>
+            <div className="meta-item">
+              <FiUser />
+              <div>
+                <span className="label">Manager</span>
+                <span className="value">
+                  {project.managerName ||
+                    `${project.manager?.firstName || ''} ${project.manager?.lastName || ''}`.trim()}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* ✅ NEW: Tasks Grid with Multi-Select */}
-        <div className="tasks-grid">
-          {project.tasks.map(task => {
-            const taskId = task.id || task._id;
-            const isSelected = selectedTasks.includes(taskId);
 
-            return (
-              <div
-                key={taskId}
-                className={`task-card ${isSelected ? 'selected' : ''}`}
-                onClick={() => handleTaskPress(taskId)}
-                onMouseDown={() => handleLongPressStart(taskId)}
-                onMouseUp={handleLongPressEnd}
-                onMouseLeave={handleLongPressEnd}
-                onTouchStart={() => handleLongPressStart(taskId)}
-                onTouchEnd={handleLongPressEnd}
-                onTouchCancel={handleLongPressEnd}
-              >
-                {/* ✅ Selection Checkbox (when in selection mode) */}
-                {selectionMode && (
-                  <div className="task-checkbox">
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      readOnly
-                    />
-                  </div>
-                )}
+        <div className="tasks-section">
+          <div className="section-header">
+            <h2>Tasks</h2>
+            <div className="header-actions">
+              {canAssignTasks() && (
+                <button
+                  className="create-task-btn"
+                  onClick={() => setIsTaskModalOpen(true)}
+                >
+                  <FiPlus /> Add Task
+                </button>
+              )}
+            </div>
+          </div>
 
-                {/* ✅ Long press hint */}
-                {!selectionMode && (
-                  <div className="long-press-hint">
-                    Press 2s to select
-                  </div>
-                )}
 
-                <div className="task-header">
-                  <h3>{task.title}</h3>
-                  <div className="task-badges">
-                    <span className="priority-badge" style={{ backgroundColor: getPriorityColor(task.priority) }}>
-                      {task.priority}
-                    </span>
-                    <span className="status-badge" style={{ backgroundColor: getStatusColor(task.status) }}>
-                      {task.status?.replace('_', ' ')}
-                    </span>
-                  </div>
-                </div>
+          <div className="tasks-grid">
+            {project.tasks.map(task => {
+              const taskId = task.id || task._id;
+              const isSelected = selectedTasks.includes(taskId);
 
-                {/* Rest of task content unchanged */}
-                <p className="task-description">{task.description}</p>
-                {/* ... existing task meta & actions */}
+              return (
+                <div
+                  key={taskId}
+                  className={`task-card ${isSelected ? 'selected' : ''}`}
+                  onClick={() => handleTaskPress(taskId)}
+                  onMouseDown={() => handleLongPressStart(taskId)}
+                  onMouseUp={handleLongPressEnd}
+                  onMouseLeave={handleLongPressEnd}
+                  onTouchStart={() => handleLongPressStart(taskId)}
+                  onTouchEnd={handleLongPressEnd}
+                  onTouchCancel={handleLongPressEnd}
+                >
+                  {/* Selection checkbox */}
+                  {selectionMode && (
+                    <div className="task-checkbox">
+                      <input type="checkbox" checked={isSelected} readOnly />
+                    </div>
+                  )}
 
-                {/* ✅ Hide single actions in selection mode */}
-                {!selectionMode && (
-                  <div className="task-actions">
-                    {/* existing single task actions */}
-                    {task.assignedTo?._id === currentUser?.id || task.assignedTo === currentUser?.id ? (
-                      <select
-                        value={task.status}
-                        onChange={(e) => handleUpdateTask(taskId, { status: e.target.value })}
-                        className="status-select"
+                  {/* Long press hint */}
+                  {!selectionMode && (
+                    <div className="long-press-hint"></div>
+                  )}
+
+                  <div className="task-header">
+                    <h3>{task.title}</h3>
+                    <div className="task-badges">
+                      <span
+                        className="priority-badge"
+                        style={{ backgroundColor: getPriorityColor(task.priority) }}
                       >
-                        <option value="pending">Pending</option>
-                        <option value="in_progress">In Progress</option>
-                        <option value="completed">Completed</option>
-                      </select>
-                    ) : null}
+                        {task.priority}
+                      </span>
+                      <span
+                        className="status-badge"
+                        style={{ backgroundColor: getStatusColor(task.status) }}
+                      >
+                        {task.status?.replace('_', ' ')}
+                      </span>
+                    </div>
+                  </div>
 
-                    {canAssignTasks() && (
-                      <>
-                        <button
-                          className="edit-btn"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openEditTaskModal(task);
-                          }}
-                          title="Edit Task"
-                        >
-                          <FiEdit3 />
-                        </button>
-                        <button
-                          className="delete-btn"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteTask(taskId);
-                          }}
-                        >
-                          <FiTrash2 />
-                        </button>
-                      </>
+                  <p className="task-description">{task.description}</p>
+
+                  <div className="task-meta">
+                    <div className="meta-item">
+                      <span className="label">Assigned to:</span>
+                      <span className="value">
+                        {task.assignedTo?.firstName
+                          ? `${task.assignedTo.firstName} ${task.assignedTo.lastName || ''}`.trim()
+                          : task.assignedTo || 'Unassigned'}
+                      </span>
+                    </div>
+
+                    {task.dueDate && (
+                      <div className="meta-item">
+                        <span className="label">Due:</span>
+                        <span className="value">
+                          {new Date(task.dueDate).toLocaleDateString()}
+                        </span>
+                      </div>
                     )}
                   </div>
-                )}
-              </div>
-            );
-          })}
+
+                  {/* Hide actions in selection mode */}
+                  {!selectionMode && (
+                    <div className="task-actions">
+                      {task.assignedTo?._id === currentUser?.id || task.assignedTo === currentUser?.id ? (
+                        <select
+                          value={task.status}
+                          onChange={(e) => handleUpdateTask(taskId, { status: e.target.value })}
+                          className="status-select"
+                        >
+                          <option value="pending">Pending</option>
+                          <option value="in_progress">In Progress</option>
+                          <option value="completed">Completed</option>
+                        </select>
+                      ) : null}
+
+                      {canAssignTasks() && (
+                        <>
+                          <button
+                            className="edit-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openEditTaskModal(task);
+                            }}
+                            title="Edit Task"
+                          >
+                            <FiEdit3 />
+                          </button>
+                          <button
+                            className="delete-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteTask(taskId);
+                            }}
+                          >
+                            <FiTrash2 />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+
+
+          {project.tasks.length === 0 && (
+            <div className="empty-state">
+              <FiPlus size={48} />
+              <h3>No tasks yet</h3>
+              <p>Get started by creating the first task for this project.</p>
+            </div>
+          )}
         </div>
       </div>
-
-      {/* ✅ NEW: Bulk Delete Confirmation Modal */}
+          {/* ✅ NEW: Bulk Delete Confirmation Modal */}
       {isDeleteConfirmOpen && (
         <div className="modal">
           <div className="modal-content">
@@ -437,14 +548,14 @@ const ProjectDetails = ({ currentUser, onLogout }) => {
               <p>This action cannot be undone. Are you sure?</p>
             </div>
             <div className="modal-actions">
-              <button
-                type="button"
+              <button 
+                type="button" 
                 onClick={() => setIsDeleteConfirmOpen(false)}
               >
                 Cancel
               </button>
-              <button
-                type="button"
+              <button 
+                type="button" 
                 className="primary danger"
                 onClick={handleBulkDeleteTasks}
               >
@@ -454,7 +565,6 @@ const ProjectDetails = ({ currentUser, onLogout }) => {
           </div>
         </div>
       )}
-
       {/* Task Creation Modal */}
       {isTaskModalOpen && (
         <div className="modal">
@@ -541,6 +651,7 @@ const ProjectDetails = ({ currentUser, onLogout }) => {
           </div>
         </div>
       )}
+
 
       {/* Edit Task Modal */}
       {isEditTaskModalOpen && editingTask && (
@@ -654,5 +765,6 @@ const ProjectDetails = ({ currentUser, onLogout }) => {
     </div>
   );
 };
+
 
 export default ProjectDetails;

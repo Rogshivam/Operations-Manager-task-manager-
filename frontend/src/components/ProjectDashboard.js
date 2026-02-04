@@ -13,13 +13,8 @@ const normalizeProject = (p) => ({
   teamMembers: p.teamMembers || [],
 });
 
-const ProjectDashboard = ({ currentUser, onLogout }) => {
-  // ✅ NEW: Selection State
-  const [selectionMode, setSelectionMode] = useState(false);
-  const [selectedProjects, setSelectedProjects] = useState([]);
-  const [longPressTimer, setLongPressTimer] = useState(null);
-  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
+const ProjectDashboard = ({ currentUser, onLogout }) => {
   const [projects, setProjects] = useState([]);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -39,6 +34,12 @@ const ProjectDashboard = ({ currentUser, onLogout }) => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedProjects, setSelectedProjects] = useState([]);
+  const [longPressTimer, setLongPressTimer] = useState(null);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+
+
 
   // 1. Stats Functions
   const getSingleProjectStats = (project) => {
@@ -51,6 +52,7 @@ const ProjectDashboard = ({ currentUser, onLogout }) => {
     };
   };
 
+
   const getOverallStats = (filteredProjects) => {
     const allTasks = filteredProjects.flatMap(p => p.tasks || []);
     return {
@@ -60,12 +62,14 @@ const ProjectDashboard = ({ currentUser, onLogout }) => {
     };
   };
 
+
   // 2. Permission Functions
   const canManageProject = (project) => {
     const userId = currentUser?.id || currentUser?._id;
     const managerId = project.managerId || project.manager?._id;
     return currentUser?.role === 'manager' && managerId === userId;
   };
+
 
   const canEditProject = (project) => {
     const userId = currentUser?.id || currentUser?._id;
@@ -75,19 +79,19 @@ const ProjectDashboard = ({ currentUser, onLogout }) => {
       (currentUser?.role === 'teamlead' && teamLeadId === userId);
   };
 
-  const canDeleteProject = (project) => {
+
+    const canDeleteProject = (project) => {
     return currentUser?.role === 'manager';
   };
 
   const canViewProject = (project) => {
     const userId = currentUser?.id || currentUser?._id;
-    return currentUser?.role === 'manager' ||
-      (project.teamMembers || []).some(member =>
-        (member.id || member._id || member.user?._id) === userId
-      ) ||
-      (project.teamLead?._id || project.teamLead) === userId;
+    return currentUser?.role === 'manager' || 
+           (project.teamMembers || []).some(member => 
+             (member.id || member._id || member.user?._id) === userId
+           ) ||
+           (project.teamLead?._id || project.teamLead) === userId;
   };
-
   // ✅ NEW: Long Press Handler (2s)
   const handleLongPress = useCallback((projectId) => {
     setSelectionMode(true);
@@ -105,54 +109,31 @@ const ProjectDashboard = ({ currentUser, onLogout }) => {
         : [...prev, projectId]
     );
   };
-
-  const clearSelection = () => {
-    setSelectedProjects([]);
-    setSelectionMode(false);
-  };
-
-  // ✅ NEW: Bulk Delete
-  // const handleBulkDelete = async () => {
-  //   if (selectedProjects.length === 0) return;
-
-  //   try {
-  //     await Promise.all(
-  //       selectedProjects.map(id => 
-  //         projectsAPI.delete(id, { credentials: "include" })
-  //       )
-  //     );
-
-  //     setProjects(prev => prev.filter(p => !selectedProjects.includes(p.id)));
-  //     clearSelection();
-  //   } catch (err) {
-  //     console.error(err);
-  //     alert('Error deleting projects');
-  //   }
-  // };
+  // Bulk Delete
   const handleBulkDelete = async () => {
     if (selectedProjects.length === 0) return;
 
     try {
       await Promise.all(
-        selectedProjects.map(async (id) => {
-          // ✅ Send cascade: true to delete tasks too
-          await projectsAPI.delete(id, {
-            data: { cascade: true },  // Delete tasks automatically
-            credentials: "include"
-          });
-        })
+        selectedProjects.map(id =>
+          projectsAPI.delete(id, { credentials: "include" })
+        )
       );
 
       setProjects(prev => prev.filter(p => !selectedProjects.includes(p.id)));
       clearSelection();
     } catch (err) {
       console.error(err);
-      alert(err.response?.data?.message || 'Error deleting projects');
+      alert('Error deleting projects');
     }
   };
 
-  // ... existing API functions (loadProjects, handleCreateProject, handleUpdateProject, openEditModal)
+  const clearSelection = () => {
+    setSelectedProjects([]);
+    setSelectionMode(false);
+  };
 
+  // 3. API Functions
   const loadProjects = async () => {
     setLoading(true);
     setError(null);
@@ -185,6 +166,7 @@ const ProjectDashboard = ({ currentUser, onLogout }) => {
       setLoading(false);
     }
   };
+
 
   const handleCreateProject = async (e) => {
     e.preventDefault();
@@ -219,6 +201,8 @@ const ProjectDashboard = ({ currentUser, onLogout }) => {
     }
   };
 
+
+  //FULL EDIT FUNCTIONALITY (Name, Desc, Dates, Status)
   const handleUpdateProject = async (e) => {
     e.preventDefault();
     if (!editingProject.id) return;
@@ -282,6 +266,7 @@ const ProjectDashboard = ({ currentUser, onLogout }) => {
       </div>
     );
   }
+console.log("project details:")
 
   return (
     <div className="dashboard">
@@ -315,11 +300,8 @@ const ProjectDashboard = ({ currentUser, onLogout }) => {
         </div>
       </header>
 
-      {/* ... existing dashboard-stats ... */}
-
       <div className="dashboard-content">
         <div className="dashboard-stats">
-          {/* Existing stats unchanged */}
           <div className="stat-card">
             <FiFolder />
             <div>
@@ -327,8 +309,35 @@ const ProjectDashboard = ({ currentUser, onLogout }) => {
               <p>Total Projects</p>
             </div>
           </div>
-          {/* ... other stats ... */}
+          <div className="stat-card">
+            <FiUsers />
+            <div>
+              <h3>{filteredProjects.reduce((acc, p) => acc + (p.teamMembers?.length || 0), 0)}</h3>
+              <p>Team Members</p>
+            </div>
+          </div>
+
+          <div className="stat-card">
+            <FiPlus />
+            <div>
+              <h3>{overallStats.totalTasks}</h3>
+              <p>Total Tasks</p>
+            </div>
+          </div>
+          <div className="stat-card completed">
+            <div>
+              <h3>{overallStats.completedTasks}</h3>
+              <p>Task Completed</p>
+            </div>
+          </div>
+          <div className="stat-card pending">
+            <div>
+              <h3>{overallStats.pendingTasks}</h3>
+              <p>Pending</p>
+            </div>
+          </div>
         </div>
+
 
         <div className="projects-section">
           <div className="section-header">
@@ -339,6 +348,7 @@ const ProjectDashboard = ({ currentUser, onLogout }) => {
               </button>
             )}
           </div>
+
 
           {loading && <p>Loading projects...</p>}
           {error && <p className="error">{error}</p>}
@@ -379,7 +389,7 @@ const ProjectDashboard = ({ currentUser, onLogout }) => {
                     }
                   }}
                 >
-                  {selectionMode && (
+                  {selectionMode &&  canDelete &&  (
                     <div className="selection-checkbox">
                       <span>{isSelected ? '✓' : ''}</span>
                     </div>
@@ -400,7 +410,6 @@ const ProjectDashboard = ({ currentUser, onLogout }) => {
                       </button>
                     )}
                   </div>
-                  {/* ... rest of project content ... */}
                   <p className="project-description">{project.description}</p>
                   <div className="project-stats">
                     <div className="stat">
@@ -469,7 +478,6 @@ const ProjectDashboard = ({ currentUser, onLogout }) => {
           </div>
         </div>
       )}
-
 
       {/* ✅ FULL EDIT MODAL - IDENTICAL TO CREATE */}
       {isEditModalOpen && editingProject.id && (
@@ -555,6 +563,7 @@ const ProjectDashboard = ({ currentUser, onLogout }) => {
           </div>
         </div>
       )}
+
 
       {/* Create Modal */}
       {isCreateModalOpen && (
