@@ -1,0 +1,98 @@
+.single-file-uploader {
+  max-width: 400px;
+  margin: 20px 0;
+}
+
+.upload-area {
+  border: 2px dashed #ccc;
+  border-radius: 12px;
+  padding: 40px 20px;
+  text-align: center;
+  transition: all 0.3s;
+}
+
+.upload-area:hover {
+  border-color: #007bff;
+  background: #f8f9ff;
+}
+
+.upload-label {
+  cursor: pointer;
+  display: block;
+  color: #666;
+}
+
+.upload-label:hover p {
+  color: #007bff;
+}
+
+.file-input {
+  display: none;
+}
+
+.file-preview {
+  text-align: left;
+}
+
+.file-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.success-icon {
+  color: #28a745;
+}
+
+.progress-container {
+  margin-top: 16px;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background: #e9ecef;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #007bff, #0056b3);
+  transition: width 0.3s;
+}
+
+.file-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.upload-btn,
+.remove-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.upload-btn {
+  background: #007bff;
+  color: white;
+}
+
+.upload-btn:hover:not(:disabled) {
+  background: #0056b3;
+}
+
+.remove-btn {
+  background: #dc3545;
+  color: white;
+}
+
+.remove-btn:hover {
+  background: #c82333;
+}

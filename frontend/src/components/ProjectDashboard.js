@@ -80,17 +80,17 @@ const ProjectDashboard = ({ currentUser, onLogout }) => {
   };
 
 
-    const canDeleteProject = (project) => {
+  const canDeleteProject = (project) => {
     return currentUser?.role === 'manager';
   };
 
   const canViewProject = (project) => {
     const userId = currentUser?.id || currentUser?._id;
-    return currentUser?.role === 'manager' || 
-           (project.teamMembers || []).some(member => 
-             (member.id || member._id || member.user?._id) === userId
-           ) ||
-           (project.teamLead?._id || project.teamLead) === userId;
+    return currentUser?.role === 'manager' ||
+      (project.teamMembers || []).some(member =>
+        (member.id || member._id || member.user?._id) === userId
+      ) ||
+      (project.teamLead?._id || project.teamLead) === userId;
   };
   // ✅ NEW: Long Press Handler (2s)
   const handleLongPress = useCallback((projectId) => {
@@ -266,7 +266,7 @@ const ProjectDashboard = ({ currentUser, onLogout }) => {
       </div>
     );
   }
-console.log("project details:")
+  // console.log("project details:", projects);
 
   return (
     <div className="dashboard">
@@ -389,13 +389,15 @@ console.log("project details:")
                     }
                   }}
                 >
-                  {selectionMode &&  canDelete &&  (
+                  {selectionMode && canDelete && (
                     <div className="selection-checkbox">
                       <span>{isSelected ? '✓' : ''}</span>
                     </div>
                   )}
                   <div className="project-header">
+                    <div className="baba">
                     <h3>{project.name}</h3>
+                    </div>
                     <span className={`status ${project.status}`}>{project.status}</span>
                     {canEditProject(project) && !selectionMode && (
                       <button

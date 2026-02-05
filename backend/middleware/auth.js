@@ -1,3 +1,4 @@
+const mongoose = require('mongoose'); 
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
@@ -46,8 +47,8 @@ const authorize = (...roles) => {
     }
 
     if (!roles.includes(req.user.role)) {
-      return res.status(403).json({ 
-        message: `User role ${req.user.role} is not authorized to access this route` 
+      return res.status(403).json({
+        message: `User role ${req.user.role} is not authorized to access this route`
       });
     }
 
@@ -60,7 +61,7 @@ const authorize = (...roles) => {
 const isProjectManagerOrLead = async (req, res, next) => {
   try {
 
-    
+
     // . FIX: Check BODY first, then params
     const projectId = req.body.projectId || req.params.projectId || req.params.id;
     const userId = req.user._id.toString();
@@ -76,7 +77,7 @@ const isProjectManagerOrLead = async (req, res, next) => {
       return res.status(404).json({ message: 'Project not found' });
     }
 
-    
+
 
     // Check manager (handle ObjectId or populated User)
     const managerId = project.manager?._id?.toString() || project.manager?.toString();
@@ -89,10 +90,10 @@ const isProjectManagerOrLead = async (req, res, next) => {
       return next();
     }
 
-    return res.status(403).json({ 
+    return res.status(403).json({
       message: 'Not project manager or team lead',
-      userId, 
-      managerId 
+      userId,
+      managerId
     });
   } catch (error) {
     console.error('🚨 isProjectManagerOrLead ERROR:', error);
@@ -107,7 +108,7 @@ const isProjectManager = async (req, res, next) => {
     const projectId = req.params.id || req.body.projectId;  // . Handle both
     const userId = req.user._id.toString();
 
-   
+
 
     const Project = require('../models/Project');
     const project = await Project.findById(projectId);
@@ -128,10 +129,10 @@ const isProjectManager = async (req, res, next) => {
       managerIdString = managerId?.toString();
     }
 
-    
+
 
     if (managerIdString !== userId) {
-      return res.status(403).json({ 
+      return res.status(403).json({
         message: 'Only project manager can perform this action',
         currentUser: userId,
         projectManager: managerIdString
@@ -149,18 +150,89 @@ const isProjectManager = async (req, res, next) => {
 
 // Check if user is task assignee or creator
 // . FIXED: Handle populated User objects safely
+// const isTaskAssigneeOrCreator = async (req, res, next) => {
+//   try {
+//     // . FIX: req.params.id (NOT taskId!)
+//     const taskId = req.params.id;  // From /:id routes
+//     const userId = req.user._id.toString();
+
+//     // console.log('🔍 isTaskAssigneeOrCreator:', { taskId, userId });
+
+//     if (!taskId) {
+//       return res.status(400).json({
+//         message: 'Task ID required',
+//         params: req.params
+//       });
+//     }
+
+//     const Task = require('../models/Task');
+//     const task = await Task.findById(taskId).populate('project');
+
+//     if (!task) {
+//       return res.status(404).json({ message: 'Task not found' });
+//     }
+
+//     // . SAFE User ID extraction
+//     const getUserIdSafe = (userField) => {
+//       if (!userField) return null;
+//       if (typeof userField === 'object' && userField._id) {
+//         return userField._id.toString();
+//       }
+//       return userField.toString();
+//     };
+
+//     const assignedToId = getUserIdSafe(task.assignedTo);
+//     const createdById = getUserIdSafe(task.createdBy);
+
+//     // console.log('Task auth:', { assignedToId, createdById, userId });
+
+//     // Check assignee/creator
+//     if (assignedToId === userId || createdById === userId) {
+//       return next();
+//     }
+
+//     // Check project manager/team lead
+//     const project = task.project;
+//     if (project) {
+//       const managerId = getUserIdSafe(project.manager);
+//       const teamLeadId = getUserIdSafe(project.teamLead);
+
+//       if (managerId === userId || teamLeadId === userId) {
+//         return next();
+//       }
+//     }
+
+//     return res.status(403).json({
+//       message: 'Not authorized',
+//       userId, assignedToId, createdById
+//     });
+
+//   } catch (error) {
+//     console.error('🚨 isTaskAssigneeOrCreator ERROR:', error);
+//     return res.status(500).json({ message: 'Server error' });
+//   }
+// };
+
 const isTaskAssigneeOrCreator = async (req, res, next) => {
   try {
-    // . FIX: req.params.id (NOT taskId!)
-    const taskId = req.params.id;  // From /:id routes
+    const taskId = req.params.id;
     const userId = req.user._id.toString();
-    
+
     // console.log('🔍 isTaskAssigneeOrCreator:', { taskId, userId });
 
     if (!taskId) {
+      return res.status(400).json({
+        message: 'Task ID required',
+        params: req.params
+      });
+    }
+
+    // ✅ CRITICAL: ObjectId VALIDATION FIRST!
+    if (!mongoose.Types.ObjectId.isValid(taskId)) {
+      console.log('❌ Invalid ObjectId:', taskId);
       return res.status(400).json({ 
-        message: 'Task ID required', 
-        params: req.params 
+        message: 'Invalid task ID format',
+        received: taskId 
       });
     }
 
@@ -171,7 +243,7 @@ const isTaskAssigneeOrCreator = async (req, res, next) => {
       return res.status(404).json({ message: 'Task not found' });
     }
 
-    // . SAFE User ID extraction
+    // ✅ SAFE User ID extraction (unchanged)
     const getUserIdSafe = (userField) => {
       if (!userField) return null;
       if (typeof userField === 'object' && userField._id) {
@@ -182,8 +254,6 @@ const isTaskAssigneeOrCreator = async (req, res, next) => {
 
     const assignedToId = getUserIdSafe(task.assignedTo);
     const createdById = getUserIdSafe(task.createdBy);
-    
-    // console.log('Task auth:', { assignedToId, createdById, userId });
 
     // Check assignee/creator
     if (assignedToId === userId || createdById === userId) {
@@ -195,15 +265,15 @@ const isTaskAssigneeOrCreator = async (req, res, next) => {
     if (project) {
       const managerId = getUserIdSafe(project.manager);
       const teamLeadId = getUserIdSafe(project.teamLead);
-      
+
       if (managerId === userId || teamLeadId === userId) {
         return next();
       }
     }
 
-    return res.status(403).json({ 
+    return res.status(403).json({
       message: 'Not authorized',
-      userId, assignedToId, createdById 
+      userId, assignedToId, createdById
     });
 
   } catch (error) {
@@ -211,8 +281,6 @@ const isTaskAssigneeOrCreator = async (req, res, next) => {
     return res.status(500).json({ message: 'Server error' });
   }
 };
-
-
 
 module.exports = {
   protect,

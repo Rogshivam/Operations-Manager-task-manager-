@@ -5,7 +5,8 @@ const helmet = require('helmet');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
 const cookieParser = require('cookie-parser');
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 const connectDB = require('./config/database');
 
 const authRoutes = require('./routes/auth');
@@ -60,6 +61,13 @@ app.use('/api/projects', projectRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/upload', uploadRoutes);
+
+// . Log Cloudinary env presence at startup (safe booleans)
+// console.log('Cloudinary env presence at startup:', {
+//   CLOUDINARY_CLOUD_NAME: !!process.env.CLOUDINARY_CLOUD_NAME,
+//   CLOUDINARY_API_KEY: !!process.env.CLOUDINARY_API_KEY,
+//   CLOUDINARY_API_SECRET: !!process.env.CLOUDINARY_API_SECRET
+// });
 
 // . Health check endpoint
 app.get('/api/health', (req, res) => {

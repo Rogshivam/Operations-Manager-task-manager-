@@ -14,7 +14,7 @@ import {
 import DarkModeToggle from "./DarkModeToggle";
 import "./ProjectDetails.css";
 import { tasksAPI, projectsAPI } from "../services/api";
-
+import SingleFileUploader from './SingleFileUploader';
 
 const normalizeProject = (p) => ({
   ...p,
@@ -30,13 +30,14 @@ const ProjectDetails = ({ currentUser, onLogout }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-
-
   // Selection State (SAME as Dashboard)
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedTasks, setSelectedTasks] = useState([]);
   const [longPressTimer, setLongPressTimer] = useState(null);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+
+  // 📄 Task Document View (read-only)
+  const [viewingTask, setViewingTask] = useState(null);
 
   // Task/project editing state
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
@@ -47,10 +48,12 @@ const ProjectDetails = ({ currentUser, onLogout }) => {
     priority: 'medium',
     dueDate: ''
   });
-  // const [editProject, setEditProject] = useState({});
+
   // Task editing state
   const [isEditTaskModalOpen, setIsEditTaskModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
+  //  NEW: Temp attachments for create modal
+  const [tempAttachments, setTempAttachments] = useState([]);
 
   // Task Selection Functions (IDENTICAL to Dashboard)
   const handleLongPressStart = useCallback((taskId) => {
@@ -79,6 +82,7 @@ const ProjectDetails = ({ currentUser, onLogout }) => {
         : [...prev, taskId]
     );
   }, [selectionMode]);
+
   // ✅ NEW: Bulk Delete Tasks
   const handleBulkDeleteTasks = async () => {
     if (selectedTasks.length === 0) return;
@@ -116,36 +120,70 @@ const ProjectDetails = ({ currentUser, onLogout }) => {
     setLongPressTimer(null);
   }, []);
   //  useCallback + deps array
+  // const loadProject = useCallback(async () => {
+  //   setLoading(true);
+  //   setError(null);
+  //   try {
+  //     const projectRes = await projectsAPI.getById(projectId, { credentials: "include" });
+  //     const proj = normalizeProject(projectRes.data?.project || projectRes.data);
+
+
+  //     // Fetch tasks if not included in project
+  //     if (!proj.tasks || proj.tasks.length === 0) {
+  //       try {
+  //         const tasksRes = await tasksAPI.getAll({ projectId }, { credentials: "include" });
+  //         proj.tasks = (tasksRes?.data?.tasks || tasksRes?.data || []).map(
+  //           (t) => ({ ...t, id: t.id || t._id })
+  //         );
+  //       } catch {
+  //         // ignore
+  //       }
+  //     }
+
+
+  //     setProject(proj);
+  //     // setEditProject({
+  //     //   name: proj.name || "",
+  //     //   description: proj.description || "",
+  //     //   startDate: proj.startDate || "",
+  //     //   endDate: proj.endDate || "",
+  //     // });
+  //   } catch (err) {
+  //     console.error(err);
+  //     setError(err.message || "Failed to load project");
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // }, [projectId]);
+
   const loadProject = useCallback(async () => {
     setLoading(true);
     setError(null);
+
     try {
+      // 1. Get project WITHOUT tasks
       const projectRes = await projectsAPI.getById(projectId, { credentials: "include" });
       const proj = normalizeProject(projectRes.data?.project || projectRes.data);
 
+      // 2. ✅ FORCE project-specific tasks ONLY
+      const tasksParams = {
+        projectId: projectId,        // Filter by THIS project
+        limit: 1000,                 // Get ALL tasks for this project
+        page: 1
+      };
 
-      // Fetch tasks if not included in project
-      if (!proj.tasks || proj.tasks.length === 0) {
-        try {
-          const tasksRes = await tasksAPI.getAll({ projectId }, { credentials: "include" });
-          proj.tasks = (tasksRes?.data?.tasks || tasksRes?.data || []).map(
-            (t) => ({ ...t, id: t.id || t._id })
-          );
-        } catch {
-          // ignore
-        }
-      }
+      const tasksRes = await tasksAPI.getAll(tasksParams, { credentials: "include" });
 
+      // 3. ✅ ONLY assign tasks WHERE project ID matches
+      proj.tasks = (tasksRes?.data?.tasks || [])
+        .filter(task => task.project?._id === projectId || task.project === projectId)
+        .map(t => ({ ...t, id: t.id || t._id }));
 
+      // console.log(`✅ Project ${proj.name}: ${proj.tasks.length} tasks loaded`);
       setProject(proj);
-      // setEditProject({
-      //   name: proj.name || "",
-      //   description: proj.description || "",
-      //   startDate: proj.startDate || "",
-      //   endDate: proj.endDate || "",
-      // });
+
     } catch (err) {
-      console.error(err);
+      console.error('🚨 loadProject ERROR:', err);
       setError(err.message || "Failed to load project");
     } finally {
       setLoading(false);
@@ -160,36 +198,74 @@ const ProjectDetails = ({ currentUser, onLogout }) => {
 
 
   // Create Task (API)
-  const handleCreateTask = async (e) => {
+  const handleCreateTask = useCallback(async (e) => {
     e.preventDefault();
-    if (!currentUser) return alert("You must be logged in.");
-
+    if (!currentUser || !newTask.title.trim()) {
+      alert("Title is required");
+      return;
+    }
 
     try {
-      const payload = {
-        title: newTask.title,
-        description: newTask.description,
-        projectId: project.id,
-        assignedTo: newTask.assignedTo,
-        priority: newTask.priority,
-        dueDate: newTask.dueDate || undefined,
-        status: newTask.status || 'pending',
-        createdBy: currentUser.id || currentUser._id,
-      };
+      const formData = new FormData();
+      formData.append('title', newTask.title);
+      formData.append('description', newTask.description);
+      formData.append('projectId', project.id);
+      formData.append('assignedTo', newTask.assignedTo);
+      formData.append('priority', newTask.priority);
+      formData.append('dueDate', newTask.dueDate || '');
+      formData.append('status', 'pending');
+      formData.append('createdBy', currentUser.id || currentUser._id);
 
+      // ✅ Add temp files
+      tempAttachments.forEach((file, index) => {
+        formData.append('attachments', file);
+      });
 
-      await tasksAPI.create(payload, { credentials: "include" });
+      // await tasksAPI.create(formData, {
+      //   credentials: "include" // ✅ Let browser set Content-Type
+      // });
+      const res = await tasksAPI.create(formData, { credentials: "include" });
+      const createdTaskId = res.data.task._id;
+
+      // upload attachments AFTER task exists
+      for (const file of tempAttachments) {
+        const fd = new FormData();
+        fd.append("file", file);
+        await tasksAPI.uploadSingleAttachment(createdTaskId, fd);
+      }
+
+      setTempAttachments([]);
       await loadProject();
       setIsTaskModalOpen(false);
       setNewTask({ title: '', description: '', assignedTo: '', priority: 'medium', dueDate: '' });
     } catch (err) {
-      console.error('❌ ERROR:', err.response?.data || err.message);
+      console.error('❌ ERROR:', err);
       alert(err.response?.data?.message || "Failed to create task");
     }
-  };
-
+  }, [currentUser, newTask, project?.id, tempAttachments, loadProject]);
+  //   ✅ SingleFileUploader callback for CREATE
+  //   const handleFileUploadSuccess = (fileData) => {
+  //     setTempAttachments(prev => [...prev, fileData.file]);
+  //     console.log('✅ Temp file stored:', fileData.file.name);
+  //   };
+  // FIXED: Safe handleFileUploadSuccess with useCallback
+  // const handleFileUploadSuccess = useCallback((fileData) => {
+  //   if (fileData?.file) {
+  //     setTempAttachments(prev => [...prev, fileData.file]);
+  //     console.log('✅ Temp file stored:', fileData.file.name);
+  //   }
+  // }, []);
 
   // Update Task (API) - Quick status update
+  // const handleUpdateTask = async (taskId, updates) => {
+  //   try {
+  //     await tasksAPI.update(taskId, updates, { credentials: "include" });
+  //     await loadProject();
+  //   } catch (err) {
+  //     console.error(err);
+  //     alert("Failed to update task");
+  //   }
+  // };
   const handleUpdateTask = async (taskId, updates) => {
     try {
       await tasksAPI.update(taskId, updates, { credentials: "include" });
@@ -199,8 +275,6 @@ const ProjectDetails = ({ currentUser, onLogout }) => {
       alert("Failed to update task");
     }
   };
-
-
 
 
 
@@ -299,7 +373,7 @@ const ProjectDetails = ({ currentUser, onLogout }) => {
 
 
   const stats = getTaskStats();
-  //  console.log("project detail:", project);
+  // console.log("project detail:", project);
 
 
   return (
@@ -418,7 +492,15 @@ const ProjectDetails = ({ currentUser, onLogout }) => {
                 <div
                   key={taskId}
                   className={`task-card ${isSelected ? 'selected' : ''}`}
-                  onClick={() => handleTaskPress(taskId)}
+                  // onClick={() => handleTaskPress(taskId)}
+                  onClick={() => {
+                    if (selectionMode) {
+                      handleTaskPress(taskId);     // selection behavior
+                    } else {
+                      setViewingTask(task);        // open document view
+                    }
+                  }}
+
                   onMouseDown={() => handleLongPressStart(taskId)}
                   onMouseUp={handleLongPressEnd}
                   onMouseLeave={handleLongPressEnd}
@@ -534,7 +616,8 @@ const ProjectDetails = ({ currentUser, onLogout }) => {
           )}
         </div>
       </div>
-          {/* ✅ NEW: Bulk Delete Confirmation Modal */}
+
+      {/* ✅ NEW: Bulk Delete Confirmation Modal */}
       {isDeleteConfirmOpen && (
         <div className="modal">
           <div className="modal-content">
@@ -548,14 +631,14 @@ const ProjectDetails = ({ currentUser, onLogout }) => {
               <p>This action cannot be undone. Are you sure?</p>
             </div>
             <div className="modal-actions">
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={() => setIsDeleteConfirmOpen(false)}
               >
                 Cancel
               </button>
-              <button 
-                type="button" 
+              <button
+                type="button"
                 className="primary danger"
                 onClick={handleBulkDeleteTasks}
               >
@@ -565,22 +648,23 @@ const ProjectDetails = ({ currentUser, onLogout }) => {
           </div>
         </div>
       )}
+
       {/* Task Creation Modal */}
       {isTaskModalOpen && (
         <div className="modal">
-          <div className="modal-content">
+          <div className=" task-viewer">
             <div className="modal-header">
               <h2>Create New Task</h2>
-              <button
-                className="close-btn"
-                onClick={() => setIsTaskModalOpen(false)}
-              >
+              <button className="close-btn" onClick={() => {
+                setIsTaskModalOpen(false);
+                setTempAttachments([]);
+              }}>
                 ×
               </button>
             </div>
             <form onSubmit={handleCreateTask}>
               <div className="form-group">
-                <label>Task Title</label>
+                <label>Task Title *</label>
                 <input
                   type="text"
                   value={newTask.title}
@@ -588,13 +672,36 @@ const ProjectDetails = ({ currentUser, onLogout }) => {
                   required
                 />
               </div>
+
               <div className="form-group">
-                <label>Description</label>
+                <label>Description *</label>
                 <textarea
                   value={newTask.description}
                   onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
                   required
+                  rows="3"
                 />
+              </div>
+
+              {/* ✅ SIMULTANEOUS UPLOAD - Works NOW! */}
+              <div className="form-group">
+                <label>Attachments</label>
+                {/* <SingleFileUploader
+                  taskId="temp_create"
+                  onUploadSuccess={handleFileUploadSuccess}
+                  maxSizeMB={5}
+                /> */}
+                <input
+                  type="file"
+                  multiple
+                  onChange={(e) => setTempAttachments([...e.target.files])}
+                />
+                {/* ✅ Show uploaded files */}
+                {tempAttachments.length > 0 && (
+                  <div className="temp-attachments">
+                    <small>📎 {tempAttachments.length} file{tempAttachments.length > 1 ? 's' : ''} ready to upload</small>
+                  </div>
+                )}
               </div>
               <div className="form-row">
                 <div className="form-group">
@@ -652,15 +759,14 @@ const ProjectDetails = ({ currentUser, onLogout }) => {
         </div>
       )}
 
-
       {/* Edit Task Modal */}
       {isEditTaskModalOpen && editingTask && (
         <div className="modal">
-          <div className="modal-content">
+          <div className="task-viewer">
             <div className="modal-header">
               <h2>Edit Task</h2>
               <button
-                className="close-btn"
+                className="close-btn "
                 onClick={() => {
                   setIsEditTaskModalOpen(false);
                   setEditingTask(null);
@@ -687,6 +793,23 @@ const ProjectDetails = ({ currentUser, onLogout }) => {
                   required
                 />
               </div>
+              {/* // In Edit Task Modal  */}
+              <SingleFileUploader
+                taskId={editingTask.id || editingTask._id}
+                onUploadSuccess={async (updatedTask) => {
+                  setTempAttachments(prev => [...prev, updatedTask.file]);
+                  setEditingTask(updatedTask);
+                  // await loadProject();
+
+                }}
+              />
+              {/* <SingleFileUploader
+  taskId="temp_edit"
+  onUploadSuccess={(data) => {
+    setTempAttachments(prev => [...prev, data.file]);
+  }}
+/> */}
+
               <div className="form-row">
                 <div className="form-group">
                   <label>Assign To</label>
@@ -762,6 +885,158 @@ const ProjectDetails = ({ currentUser, onLogout }) => {
           </div>
         </div>
       )}
+
+      {/* 📄 Task Document View Modal */}
+      {viewingTask && (
+        <div className="modal" onClick={() => setViewingTask(null)}>
+          <div className="task-viewer" onClick={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <div className="viewer-header">
+              <div className="task-title-section">
+                <h1 className="task-title">{viewingTask.title}</h1>
+                <div className="task-badges">
+                  <span className={`priority-badge priority-${viewingTask.priority}`}>
+                    {viewingTask.priority?.toUpperCase()}
+                  </span>
+                  <span className={`status-badge status-${viewingTask.status || 'pending'}`}>
+                    {viewingTask.status?.replace('_', ' ') || 'Pending'}
+                  </span>
+                </div>
+              </div>
+              <button
+                className="close-btn modern-close"
+                onClick={() => setViewingTask(null)}
+                aria-label="Close task viewer"
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Meta Info */}
+            <div className="viewer-meta">
+              <div className="meta-item">
+                <div className="meta-icon">👤</div>
+                <div>
+                  <div className="meta-label">Assigned To</div>
+                  <span className="meta-value">
+                    {viewingTask.assignedTo?.firstName
+                      ? `${viewingTask.assignedTo.firstName} ${viewingTask.assignedTo.lastName || ""}`.trim()
+                      : viewingTask.assignedTo || "Unassigned"}
+                  </span>
+                </div>
+              </div>
+
+              {viewingTask.dueDate && (
+                <div className="meta-item">
+                  <div className="meta-icon">📅</div>
+                  <div>
+                    <div className="meta-label">Due Date</div>
+                    <span className="meta-value">
+                      {new Date(viewingTask.dueDate).toLocaleDateString('en-US', {
+                        weekday: 'short',
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric'
+                      })}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {viewingTask.createdBy && (
+                <div className="meta-item">
+                  <div className="meta-icon">🧑‍💻</div>
+                  <div>
+                    <div className="meta-label">Created By</div>
+                    <span className="meta-value">
+                      {viewingTask.createdBy?.firstName || 'Unknown'}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Divider */}
+            <div className="viewer-divider"></div>
+
+            {/* Description */}
+            <div className="viewer-section">
+              <h3 className="section-title">
+                <span>📝</span> Description
+              </h3>
+              <div className="description-content">
+                {viewingTask.description ? (
+                  <p>{viewingTask.description}</p>
+                ) : (
+                  <div className="empty-state">
+                    <span>No description provided</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Attachments */}
+            {viewingTask.attachments?.length > 0 && (
+              <div className="viewer-section">
+                <h3 className="section-title">
+                  <span>📎</span> Attachments
+                  <span className="section-count">({viewingTask.attachments.length})</span>
+                </h3>
+                <div className="attachments-grid">
+                  {viewingTask.attachments.map((file, index) => (
+                    <a
+                      key={file._id || file.public_id || index}
+                      href={file.fileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="attachment-card"
+                      download={file.originalName || file.filename}
+                    >
+                      <div className="attachment-icon">
+                        {file.mimeType?.startsWith('image/') ? '🖼️' :
+                          file.mimeType === 'application/pdf' ? '📄' : '📁'}
+                      </div>
+                      <div className="attachment-info">
+                        <div className="attachment-name">
+                          {file.originalName || file.filename}
+                        </div>
+                        <div className="attachment-meta">
+                          {(file.fileSize / 1024).toFixed(1)} KB
+                        </div>
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Progress Bar */}
+            {viewingTask.progress !== undefined && (
+              <div className="viewer-section">
+                <div className="progress-section">
+                  <div className="progress-label">
+                    Progress: <span className="progress-percent">{viewingTask.progress}%</span>
+                  </div>
+                  <div className="progress-bar">
+                    <div
+                      className="progress-fill"
+                      style={{ width: `${viewingTask.progress}%` }}
+                    ></div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+
+
+
+
+
     </div>
   );
 };

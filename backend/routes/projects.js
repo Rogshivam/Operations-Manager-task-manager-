@@ -151,13 +151,13 @@ router.get('/:id', protect, async (req, res) => {
       .populate('manager', 'firstName lastName email')
       .populate('teamLead', 'firstName lastName email')
       .populate('teamMembers.user', 'firstName lastName email role')
-      .populate({
-        path: 'tasks',
-        populate: {
-          path: 'assignedTo createdBy',
-          select: 'firstName lastName email'
-        }
-      });
+      // .populate({
+      //   path: 'tasks',
+      //   populate: {
+      //     path: 'assignedTo createdBy',
+      //     select: 'firstName lastName email'
+      //   }
+      // });
 
     if (!project) {
       return res.status(404).json({

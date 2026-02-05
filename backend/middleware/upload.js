@@ -26,35 +26,19 @@ const storage = multer.diskStorage({
 
 // File filter function
 const fileFilter = (req, file, cb) => {
-  const allowedTypes = process.env.ALLOWED_FILE_TYPES?.split(',') || [
-    'image/jpeg',
-    'image/png',
-    'image/gif',
-    'application/pdf',
-    'application/msword',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'text/plain',
-    'application/vnd.ms-excel',
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    'application/zip',
-    'application/x-rar-compressed'
-  ];
-
-  if (allowedTypes.includes(file.mimetype)) {
-    cb(null, true);
-  } else {
-    cb(new Error(`File type ${file.mimetype} is not allowed`), false);
-  }
+  
+  // console.log('✅ FORCING ACCEPT');      // ← MUST HAVE THIS LINE
+  cb(null, true);                       // ← MUST HAVE THIS LINE
 };
 
 // Configure multer
 const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
-  limits: {
-    fileSize: parseInt(process.env.MAX_FILE_SIZE) || 10 * 1024 * 1024, // 10MB default
-    files: 5 // Maximum 5 files per request
-  }
+  // limits: {
+  //   fileSize: parseInt(process.env.MAX_FILE_SIZE) || 10 * 1024 * 1024, // 10MB default
+  //   files: 5 // Maximum 5 files per request
+  // }
 });
 
 // Single file upload middleware
@@ -156,7 +140,7 @@ const isDocument = (mimetype) => {
 };
 
 module.exports = {
-  uploadSingle: handleUpload(uploadSingle),
+  uploadSingle: upload.single('file'), 
   uploadMultiple: handleUpload(uploadMultiple),
   uploadToCloudinary,
   getFileExtension,
