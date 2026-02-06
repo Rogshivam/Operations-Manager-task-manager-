@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import {
   FiArrowLeft,
@@ -94,13 +94,18 @@ const ProjectDetails = ({ currentUser, onLogout }) => {
         )
       );
 
-      await loadProject(); // Refresh data
-      clearSelection();
+      await loadProject();
+clearSelection();
+setIsDeleteConfirmOpen(false);
+
     } catch (err) {
       console.error(err);
       alert('Error deleting tasks');
     }
   };
+
+ const memoizedTasks = useMemo(() => project?.tasks || [], [project]);
+
 
   // Single task delete
   const handleDeleteTask = async (taskId) => {
@@ -217,9 +222,9 @@ const ProjectDetails = ({ currentUser, onLogout }) => {
       formData.append('createdBy', currentUser.id || currentUser._id);
 
       // ✅ Add temp files
-      tempAttachments.forEach((file, index) => {
-        formData.append('attachments', file);
-      });
+      // tempAttachments.forEach((file, index) => {
+      //   formData.append('attachments', file);
+      // });
 
       // await tasksAPI.create(formData, {
       //   credentials: "include" // ✅ Let browser set Content-Type
@@ -266,6 +271,7 @@ const ProjectDetails = ({ currentUser, onLogout }) => {
   //     alert("Failed to update task");
   //   }
   // };
+ 
   const handleUpdateTask = async (taskId, updates) => {
     try {
       await tasksAPI.update(taskId, updates, { credentials: "include" });
@@ -287,15 +293,24 @@ const ProjectDetails = ({ currentUser, onLogout }) => {
     const completed = project?.tasks?.filter(t => t.status === 'completed').length || 0;
     const pending = project?.tasks?.filter(t => t.status === 'pending').length || 0;
     const inProgress = project?.tasks?.filter(t => t.status === 'in_progress').length || 0;
-    return { total, completed, pending, inProgress };
+    const review = project?.tasks?.filter(t => t.status === 'review').length || 0;
+    const cancelled = project?.tasks?.filter(t => t.status === 'cancelled').length || 0;
+    return { total, completed, pending, inProgress,review ,cancelled};
   };
 
 
+  // const canManageProject = () => {
+  //   return currentUser?.role === 'manager' &&
+  //     (project?.manager?._id === currentUser?.id ||
+  //       project?.managerId === currentUser?.id);
+  // };
   const canManageProject = () => {
-    return currentUser?.role === 'manager' &&
-      (project?.manager?._id === currentUser?.id ||
-        project?.managerId === currentUser?.id);
-  };
+  const managerId =
+    project?.manager?._id || project?.manager || project?.managerId;
+
+  return currentUser?.role === 'manager' && managerId === currentUser?.id;
+};
+  
 
 
   const canAssignTasks = () => {
@@ -318,24 +333,69 @@ const ProjectDetails = ({ currentUser, onLogout }) => {
       case 'completed': return '#2ed573';
       case 'in_progress': return '#3742fa';
       case 'pending': return '#ffa502';
+      case 'review': return '#ffa502';
+      case 'cancelled': return '#ff4758';
       default: return '#ffa502';
     }
   };
 
 
   // . FIXED #5: Inline getUserName usage (no separate function needed)
+  // const openEditTaskModal = (task) => {
+  //   setEditingTask({
+  //     id: task.id || task._id,
+  //     title: task.title,
+  //     description: task.description,
+  //     assignedTo: task.assignedTo?._id || task.assignedTo || '',
+  //     priority: task.priority || 'medium',
+  //     status: task.status || 'pending',
+  //     dueDate: task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : ''
+  //   });
+  //   setIsEditTaskModalOpen(true);
+  // };
   const openEditTaskModal = (task) => {
-    setEditingTask({
-      id: task.id || task._id,
-      title: task.title,
-      description: task.description,
-      assignedTo: task.assignedTo?._id || task.assignedTo || '',
-      priority: task.priority || 'medium',
-      status: task.status || 'pending',
-      dueDate: task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : ''
-    });
-    setIsEditTaskModalOpen(true);
-  };
+  setEditingTask({
+    id: task.id || task._id,
+    title: task.title,
+    description: task.description,
+    assignedTo: task.assignedTo?._id || task.assignedTo || '',
+    priority: task.priority || 'medium',
+    status: task.status || 'pending',
+    dueDate: task.dueDate
+      ? new Date(task.dueDate).toISOString().split('T')[0]
+      : '',
+    attachments: task.attachments || []   // 👈 IMPORTANT
+  });
+
+  setIsEditTaskModalOpen(true);
+};
+
+const handleDeleteAttachment = async (taskId, attachmentId) => {
+  if (!window.confirm("Delete this attachment?")) return;
+
+  try {
+    const res = await tasksAPI.deleteAttachment(
+      taskId,
+      attachmentId,
+      { credentials: "include" }
+    );
+
+    // Update edit modal state instantly
+    // setEditingTask(prev => ({
+    //   ...prev,
+    //   attachments: prev.attachments.filter(a => a._id !== attachmentId)
+    // }));
+setEditingTask(prev => ({
+  ...prev,
+  attachments: res.data.task.attachments
+}));
+
+
+  } catch (err) {
+    console.error(err);
+    alert("Failed to delete attachment");
+  }
+};
 
 
   // Update Task (Full Edit)
@@ -357,6 +417,7 @@ const ProjectDetails = ({ currentUser, onLogout }) => {
 
       await tasksAPI.update(editingTask.id, payload, { credentials: "include" });
       await loadProject();
+      setViewingTask(null);
       setIsEditTaskModalOpen(false);
       setEditingTask(null);
     } catch (err) {
@@ -433,6 +494,14 @@ const ProjectDetails = ({ currentUser, onLogout }) => {
               <h3>{stats.pending}</h3>
               <p>Pending</p>
             </div>
+            <div className="stat-card cancelled">
+              <h3>{stats.cancelled}</h3>
+              <p>Cancelled</p>
+            </div>
+            <div className="stat-card review">
+              <h3>{stats.review}</h3>
+              <p>Review</p>
+            </div>
           </div>
 
 
@@ -483,12 +552,14 @@ const ProjectDetails = ({ currentUser, onLogout }) => {
           </div>
 
 
-          <div className="tasks-grid">
-            {project.tasks.map(task => {
-              const taskId = task.id || task._id;
-              const isSelected = selectedTasks.includes(taskId);
+  <div className="tasks-grid">
+    {memoizedTasks.map(task => {
+      const taskId = task.id || task._id;
+      const assignedId = task.assignedTo?._id || task.assignedTo;
+      const isSelected = selectedTasks.includes(taskId);
+      const canQuickUpdate = assignedId === currentUser?.id || canManageProject();
 
-              return (
+      return (
                 <div
                   key={taskId}
                   className={`task-card ${isSelected ? 'selected' : ''}`}
@@ -502,9 +573,9 @@ const ProjectDetails = ({ currentUser, onLogout }) => {
                   }}
 
                   onMouseDown={() => handleLongPressStart(taskId)}
+onTouchStart={() => handleLongPressStart(taskId)}
                   onMouseUp={handleLongPressEnd}
                   onMouseLeave={handleLongPressEnd}
-                  onTouchStart={() => handleLongPressStart(taskId)}
                   onTouchEnd={handleLongPressEnd}
                   onTouchCancel={handleLongPressEnd}
                 >
@@ -563,18 +634,22 @@ const ProjectDetails = ({ currentUser, onLogout }) => {
                   {/* Hide actions in selection mode */}
                   {!selectionMode && (
                     <div className="task-actions">
-                      {task.assignedTo?._id === currentUser?.id || task.assignedTo === currentUser?.id ? (
+                      {/* {task.assignedId === currentUser?.id ? ( */}
+                      {/* {assignedId === currentUser?.id && ( */}
+                      {canQuickUpdate && (
                         <select
-                          value={task.status}
-                          onChange={(e) => handleUpdateTask(taskId, { status: e.target.value })}
-                          className="status-select"
-                        >
+  value={task.status}
+  onClick={(e) => e.stopPropagation()}
+  onChange={(e) => handleUpdateTask(taskId, { status: e.target.value })}
+  className="status-select"
+>
                           <option value="pending">Pending</option>
                           <option value="in_progress">In Progress</option>
                           <option value="completed">Completed</option>
+                          <option value="review">Review</option>
+                          <option value="cancelled">Cancelled</option>
                         </select>
-                      ) : null}
-
+                      )}
                       {canAssignTasks() && (
                         <>
                           <button
@@ -694,7 +769,7 @@ const ProjectDetails = ({ currentUser, onLogout }) => {
                 <input
                   type="file"
                   multiple
-                  onChange={(e) => setTempAttachments([...e.target.files])}
+                  onChange={(e) => setTempAttachments(prev => [...prev, ...e.target.files])}
                 />
                 {/* ✅ Show uploaded files */}
                 {tempAttachments.length > 0 && (
@@ -793,8 +868,62 @@ const ProjectDetails = ({ currentUser, onLogout }) => {
                   required
                 />
               </div>
+              {/* Existing Attachments Preview */}
+{editingTask.attachments?.length > 0 && (
+  <div className="attachments-preview">
+    <label>Existing Attachments</label>
+
+    <div className="attachments-grid">
+      {editingTask.attachments.map((file, index) => (
+        <div key={file._id || index} className="attachment-card">
+          
+          {/* Preview / icon */}
+          <a
+            href={file.fileUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="attachment-link"
+          >
+            {file.mimeType?.startsWith("image/") ? (
+              <img src={file.fileUrl} alt={file.originalName} />
+            ) : (
+              <span className="file-icon">
+                {file.mimeType === "application/pdf" ? "📄" : "📁"}
+              </span>
+            )}
+          </a>
+
+          <div className="attachment-name">
+            {file.originalName}
+          </div>
+
+          {/* Delete */}
+          <button
+            type="button"
+            className="delete-attachment-btn"
+            onClick={() => handleDeleteAttachment(editingTask.id, file._id)}
+          >
+            <FiTrash2 />
+          </button>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
+
               {/* // In Edit Task Modal  */}
               <SingleFileUploader
+  taskId={editingTask.id}
+  onUploadSuccess={(updatedTask) => {
+  setEditingTask(updatedTask);
+  setViewingTask(prev =>
+  prev ? { ...prev, attachments: res.data.task.attachments } : prev
+);
+
+}}
+
+/>
+              {/* <SingleFileUploader
                 taskId={editingTask.id || editingTask._id}
                 onUploadSuccess={async (updatedTask) => {
                   setTempAttachments(prev => [...prev, updatedTask.file]);
@@ -802,7 +931,7 @@ const ProjectDetails = ({ currentUser, onLogout }) => {
                   // await loadProject();
 
                 }}
-              />
+              /> */}
               {/* <SingleFileUploader
   taskId="temp_edit"
   onUploadSuccess={(data) => {
@@ -856,6 +985,9 @@ const ProjectDetails = ({ currentUser, onLogout }) => {
                     <option value="pending">Pending</option>
                     <option value="in_progress">In Progress</option>
                     <option value="completed">Completed</option>
+                    <option value="review">Review</option>
+                    <option value="cancelled">Cancelled</option>
+
                   </select>
                 </div>
                 <div className="form-group">
@@ -1003,7 +1135,10 @@ const ProjectDetails = ({ currentUser, onLogout }) => {
                           {file.originalName || file.filename}
                         </div>
                         <div className="attachment-meta">
-                          {(file.fileSize / 1024).toFixed(1)} KB
+                          {file.fileSize
+  ? `${(file.fileSize / 1024).toFixed(1)} KB`
+  : '—'}
+
                         </div>
                       </div>
                     </a>

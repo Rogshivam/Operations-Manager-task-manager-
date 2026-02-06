@@ -72,12 +72,19 @@ const TeamManagement = ({ currentUser, onLogout }) => {
       console.error("Error loading users:", err);
     }
   }, []);
-  useEffect(() => {
-    if (projectId) {
-      loadProject();
-      loadAllUsers();
-    }
-  }, [projectId, loadProject, loadAllUsers]);
+ useEffect(() => {
+  if (!projectId) return;
+
+  const init = async () => {
+    await loadProject();
+    await loadAllUsers(); // 👈 always load
+  };
+
+  init();
+}, [projectId, loadProject, loadAllUsers]);
+
+
+
 
   // . Add team member (API)
   // . UPDATED TeamManagement.js - Replace these 4 functions:
@@ -106,27 +113,47 @@ const TeamManagement = ({ currentUser, onLogout }) => {
 
 
   // Remove team member (direct update)
-  const handleRemoveTeamMember = async (memberId) => {
-    if (!window.confirm("Remove this team member?")) return;
+  // const handleRemoveTeamMember = async (memberId) => {
+  //   if (!window.confirm("Remove this team member?")) return;
 
-    try {
-      const updatedTeamMembers = (project.teamMembers || []).filter(
-        member => (member.id || member._id) !== memberId
-      );
+  //   try {
+  //     const updatedTeamMembers = (project.teamMembers || []).filter(
+  //       member => (member.id || member._id) !== memberId
+  //     );
 
-      // Clear team lead if removing the lead
-      let updateData = { teamMembers: updatedTeamMembers };
-      if (project.teamLead?.id === memberId || project.teamLead === memberId) {
-        updateData.teamLead = null;
-      }
+  //     // Clear team lead if removing the lead
+  //     let updateData = { teamMembers: updatedTeamMembers };
+  //     if (project.teamLead?.id === memberId || project.teamLead === memberId) {
+  //       updateData.teamLead = null;
+  //     }
 
-      const res = await projectsAPI.update(projectId, updateData, { credentials: "include" });
-      setProject(normalizeProject(res.data?.project || res.data));
-    } catch (err) {
-      console.error("Error removing member:", err);
-      alert("Failed to remove member");
-    }
-  };
+  //     const res = await projectsAPI.update(projectId, updateData, { credentials: "include" });
+  //     setProject(normalizeProject(res.data?.project || res.data));
+  //   } catch (err) {
+  //     console.error("Error removing member:", err);
+  //     alert("Failed to remove member");
+  //   }
+  // };
+const handleRemoveTeamMember = async (memberId) => {
+  if (!window.confirm("Remove this team member?")) return;
+
+  try {
+    const res = await projectsAPI.removeTeamMember(projectId, memberId, { 
+      credentials: "include" 
+    });
+
+    // ✅ FIX 1: Reload fresh data from server (MOST RELIABLE)
+    await loadProject();  
+    
+    // console.log('✅ Member removed & UI refreshed');
+  } catch (err) {
+    console.error("Error removing member:", err);
+    alert("Failed to remove member");
+  }
+};
+
+
+
 
   // Assign team lead (direct update)
   // . FIXED - Send ObjectId string (matches backend expectation)
@@ -168,37 +195,66 @@ const TeamManagement = ({ currentUser, onLogout }) => {
       alert("Failed to remove team lead");
     }
   };
-
+ 
+  const getUserId = () => currentUser?.id || currentUser?._id;
+const isProjectTeamLead = () => {
+  const userId = getUserId();
+  return (project?.teamLead?._id || project?.teamLead) === userId;
+};
+ const canViewTeam = () => {
+  const userId = getUserId();
+  return currentUser?.role === "manager" || 
+         isProjectTeamLead() ||
+         (project?.teamMembers || []).some(member => 
+           (member.user?.id || member.user?._id) === userId
+         );
+};
 
   // . Permission check (safe version)
   const canManageTeam = () => {
-    const userId = currentUser?.id || currentUser?._id;
-    const managerId = project?.managerId || project?.manager?._id;
-    return currentUser?.role === "manager" && managerId === userId;
-  };
+  const userId = getUserId();
+  const isManager = currentUser?.role === "manager" && 
+                   (project?.manager?._id || project?.manager) === userId;
+  return isManager || isProjectTeamLead();
+};
+
   // const canManageTeam = () => {
   //         return currentUser.role === 'manager' && project?.managerId === currentUser.id;
   //     };
   // . Get available users (not already in team + search filter)
-  const getAvailableUsers = () => {
-    const currentMemberIds = (project?.teamMembers || []).map(member =>
-      member.id || member._id || member.user?._id
+  
+const getAvailableUsers = () => {
+  if (!allUsers.length) return [];
+
+  const currentMemberIds = (project?.teamMembers || []).map(
+    member => member.user?._id || member.id || member._id
+  );
+
+  return allUsers.filter(user => {
+    const userId = user.id || user._id;
+
+    const name =
+      user.username ||
+      `${user.firstName || ""} ${user.lastName || ""}`.trim();
+
+    return (
+      !currentMemberIds.includes(userId) &&
+      name.toLowerCase().includes(searchTerm.toLowerCase())
     );
-    return allUsers.filter(user => {
-      const userId = user.id || user._id;
-      return !currentMemberIds.includes(userId) &&
-        user.username?.toLowerCase().includes(searchTerm.toLowerCase());
-    });
-  };
+  });
+};
+
+
 
   const isTeamLead = (memberId) => {
-    const leadId = project?.teamLead?.id || project?.teamLead?._id || project?.teamLead;
+    const leadId = project?.teamLead?._id || project?.teamLead;
     return leadId === (memberId || memberId._id);
   };
 
   if (loading) return <div className="loading">Loading team...</div>;
   if (!project) return <div className="loading">Project not found</div>;
-  if (!canManageTeam()) return <div>Access denied. Managers only.</div>;
+  // if (!canManageTeam()) return <div>Access denied. Managers only.</div>;
+  if (!canViewTeam()) return <div>Access denied. You must be a team member.</div>;
 
   const availableUsers = getAvailableUsers();
   // console.log("project:", project);
@@ -211,7 +267,7 @@ const TeamManagement = ({ currentUser, onLogout }) => {
             <FiArrowLeft /> Back to Project
           </Link>
           <div className="project-info">
-            <h1>Team Management</h1>
+            <h1>{canManageTeam() ? 'Manage Team' : 'Team'}</h1>  {/* ✅ Dynamic */}
             <p>{project.name}</p>
           </div>
         </div>
@@ -270,13 +326,13 @@ const TeamManagement = ({ currentUser, onLogout }) => {
           <div className="section-header">
             <h2>Team Members</h2>
             {canManageTeam() && (
-              <button
-                className="add-member-btn"
-                onClick={() => setIsAddMemberModalOpen(true)}
-              >
-                <FiPlus /> Add Member
-              </button>
-            )}
+  <button
+    className="add-member-btn"
+    onClick={() => setIsAddMemberModalOpen(true)}
+  >
+    <FiPlus /> Add Member
+  </button>
+)}
           </div>
 
           {/* Team Lead Section */}
@@ -292,14 +348,14 @@ const TeamManagement = ({ currentUser, onLogout }) => {
                   <span className="role">Team Lead</span>
                   <span className="email">{project.teamLead.email}</span>
                 </div>
-                {canManageTeam() && (
+                {/* {canManageTeam() && (
                   <button
                     className="remove-lead-btn"
                     onClick={handleRemoveTeamLead}
                   >
                     Remove Lead
                   </button>
-                )}
+                )} */}
               </div>
             </div>
           )}
@@ -307,14 +363,16 @@ const TeamManagement = ({ currentUser, onLogout }) => {
           {/* Team Members Grid */}
           <div className="members-section">
             <h3>Team Members</h3>
-            <div className="members-grid">
+            <div className="members-grid" key={project.teamMembers?.length || 0}>
               {(project.teamMembers || []).map((member) => {
                 // . member.id works perfectly for your data
                 const memberId = member.id || member._id;
 
                 // . Perfect name extraction for your structure
-                const displayName = `${member.user.firstName} ${member.user.lastName}`.trim() ||
-                  member.user.username || 'Unknown User';
+                const displayName =
+  member.user.username ||
+  `${member.user.firstName || ""} ${member.user.lastName || ""}`.trim() ||
+  "Unknown User";
 
                 return (
                   <div key={memberId} className="member-card">
@@ -328,26 +386,22 @@ const TeamManagement = ({ currentUser, onLogout }) => {
                       </span>
                       <span className="email">{member.user.email}</span>
                     </div>
-                    <div className="member-actions">
-                      {/* . "Make Lead" logic */}
-                      {canManageTeam() && !isTeamLead(memberId) && !project.teamLead && (
-                        <button
-                          className="assign-lead-btn"
-                          onClick={() => handleAssignTeamLead(memberId)}
-                        >
-                          <FiAward /> Make Lead
-                        </button>
-                      )}
-                      {canManageTeam() && (
-                        <button
-                          className="remove-member-btn"
-                          onClick={() => handleRemoveTeamMember(memberId)}
-                        >
+
+                    {/* . "Make Lead" logic */}
+                    {canManageTeam() && (
+                      <div className="member-actions">
+                        {!isTeamLead(memberId) && !project.teamLead && (
+                          <button className="assign-lead-btn" onClick={() => handleAssignTeamLead(memberId)}>
+                            <FiAward /> Make Lead
+                          </button>
+                        )}
+                        <button className="remove-member-btn" onClick={() => handleRemoveTeamMember(memberId)}>
                           <FiTrash2 />
                         </button>
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </div>
+
                 );
               })}
             </div>

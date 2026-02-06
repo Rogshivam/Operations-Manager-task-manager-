@@ -7,18 +7,34 @@ const Project = require('../models/Project');
 const User = require('../models/User');
 const { protect, isProjectManagerOrLead, isTaskAssigneeOrCreator } = require('../middleware/auth');
 const { uploadSingle, uploadMultiple, uploadToCloudinary } = require('../middleware/upload');
+const cloudinary = require('cloudinary').v2;
 
 const router = express.Router();
+
+
+
+
+
+
+
 
 
 // @route   POST /api/tasks
 // @desc    Create a new task
 // @access  Private
-router.post('/', protect, isProjectManagerOrLead, [
+router.post('/', protect, isProjectManagerOrLead, uploadMultiple, [
+
   body('title').notEmpty().withMessage('Task title required'),
 ], async (req, res) => {
   try {
     const { title, description, projectId, assignedTo, priority, dueDate } = req.body;
+    const errors = validationResult(req);
+if (!errors.isEmpty()) {
+  return res.status(400).json({
+    message: 'Validation failed',
+    errors: errors.array()
+  });
+}
 
     const project = await Project.findById(projectId);
     if (!project) return res.status(404).json({ message: 'Project not found' });
@@ -36,22 +52,22 @@ router.post('/', protect, isProjectManagerOrLead, [
     });
 
     // Add uploaded files
-    if (req.files && req.files.length > 0) {
-      const uploadedFiles = [];
-      for (const file of req.files) {
-        let fileData = {
-          filename: file.filename,
-          originalName: file.originalname,
-          fileUrl: `${req.protocol}://${req.get('host')}/uploads/${file.filename}`,
-          fileSize: file.size,
-          mimeType: file.mimetype,
-          uploadedBy: req.user._id
-        };
-        uploadedFiles.push(fileData);
-      }
-      task.attachments.push(...uploadedFiles);
-      await task.save();
-    }
+    // if (req.files && req.files.length > 0) {
+    //   const uploadedFiles = [];
+    //   for (const file of req.files) {
+    //     let fileData = {
+    //       filename: file.filename,
+    //       originalName: file.originalname,
+    //       fileUrl: `${req.protocol}://${req.get('host')}/uploads/${file.filename}`,
+    //       fileSize: file.size,
+    //       mimeType: file.mimetype,
+    //       uploadedBy: req.user._id
+    //     };
+    //     uploadedFiles.push(fileData);
+    //   }
+    //   task.attachments.push(...uploadedFiles);
+    //   await task.save();
+    // }
     
     await task.populate('assignedTo createdBy project');
     res.status(201).json({ success: true, task });
@@ -95,7 +111,9 @@ router.get('/', protect, async (req, res) => {
         {
           $or: [
             { assignedTo: req.user._id },
-            { createdBy: req.user._id }
+            { createdBy: req.user._id },
+            { project: { $in: req.user.projects || [] } }
+
           ]
         }
       ];
@@ -106,13 +124,19 @@ router.get('/', protect, async (req, res) => {
     const sortOptions = { [sortBy]: sortOrder === 'desc' ? -1 : 1 };
 
     const tasks = await Task.find(query)
-      .populate('assignedTo', 'firstName lastName email')
-      .populate('createdBy', 'firstName lastName email')
-      .populate('project', 'name')
-      .sort(sortOptions)
-      .skip(skip)
-      .limit(parseInt(limit));
-
+      // .populate('assignedTo', 'firstName lastName email')
+      // .populate('createdBy', 'firstName lastName email')
+      // .populate('project', 'name')
+      // .sort(sortOptions)
+      // .skip(skip)
+      // .limit(parseInt(limit));
+ .populate('assignedTo', 'firstName lastName email')
+  .populate('createdBy', 'firstName lastName email')
+  .populate('project', 'name')
+  .populate('attachments.uploadedBy', 'firstName lastName email')
+  .sort(sortOptions)
+  .skip(skip)
+  .limit(parseInt(limit))
     const total = await Task.countDocuments(query);
 
     res.json({
@@ -146,7 +170,8 @@ router.get('/:id', protect, async (req, res) => {
     const project = await Project.findById(task.project);
     const hasAccess = 
       project.manager.toString() === req.user._id.toString() ||
-      task.assignedTo._id.toString() === req.user._id.toString() ||
+      (task.assignedTo && task.assignedTo._id.toString() === req.user._id.toString())
+ ||
       task.createdBy._id.toString() === req.user._id.toString() ||
       project.teamMembers.some(member => member.user.toString() === req.user._id.toString()) ||
       (project.teamLead && project.teamLead.toString() === req.user._id.toString());
@@ -176,8 +201,20 @@ router.put('/:id', protect, isTaskAssigneeOrCreator, [
     if (!errors.isEmpty()) {
       return res.status(400).json({ message: 'Validation failed', errors: errors.array() });
     }
-
-    const updates = req.body;
+const allowedUpdates = [
+  'title',
+  'description',
+  'priority',
+  'status',
+  'dueDate'
+];
+    // const updates = req.body;
+const updates = {};
+for (const key of allowedUpdates) {
+  if (req.body[key] !== undefined) {
+    updates[key] = req.body[key];
+  }
+}
     const task = await Task.findByIdAndUpdate(
       req.params.id,
       updates,
@@ -429,20 +466,29 @@ router.post(
 
 // Delete attachment
 router.delete('/:id/attachments/:attachmentId', protect, isTaskAssigneeOrCreator, async (req, res) => {
+  
   try {
     const { attachmentId } = req.params;
     const task = await Task.findById(req.params.id);
     if (!task) {
       return res.status(404).json({ message: 'Task not found' });
     }
-
+    
     const attachment = task.attachments.id(attachmentId);
     if (!attachment) {
       return res.status(404).json({ message: 'Attachment not found' });
     }
-
+     if (attachment.public_id) {
+   await cloudinary.uploader.destroy(attachment.public_id);
+ }
     task.attachments.pull(attachmentId);
-    await task.save();
+await task.save();
+
+    // task.attachments.pull(attachmentId);
+    // await task.save();
+if (attachment.public_id) {
+  await cloudinary.uploader.destroy(attachment.public_id);
+}
 
     await task.populate([
       { path: 'assignedTo', select: 'firstName lastName email' },
@@ -469,7 +515,7 @@ router.post('/:id/comments', protect, [
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ message: 'Validation failed', errors: errors.array() });
+      return res.status(400).json({ errors: errors.array(), message: 'Validation failed' });
     }
 
     const { content } = req.body;
@@ -482,7 +528,7 @@ router.post('/:id/comments', protect, [
     const project = await Project.findById(task.project);
     const hasAccess = 
       project.manager.toString() === req.user._id.toString() ||
-      task.assignedTo.toString() === req.user._id.toString() ||
+      (task.assignedTo && task.assignedTo.toString() === req.user._id.toString()) ||
       task.createdBy.toString() === req.user._id.toString() ||
       project.teamMembers.some(member => member.user.toString() === req.user._id.toString()) ||
       (project.teamLead && project.teamLead.toString() === req.user._id.toString());

@@ -1,14 +1,96 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
 const User = require('../models/User');
-const { protect, authorize } = require('../middleware/auth');
+const { protect, authorize,isProjectManagerOrLead } = require('../middleware/auth');
 
 const router = express.Router();
 
+// @route   GET /api/users/search/team-members
+// @desc    Search for team members (for project assignment)
+// @access  Private
+router.get('/search/team-members', protect,isProjectManagerOrLead, async (req, res) => {
+  try {
+    const { search, excludeProject } = req.query;
+
+    let query = { isActive: true };
+
+    // Exclude users already in a specific project
+    if (excludeProject) {
+      const Project = require('../models/Project');
+      const project = await Project.findById(excludeProject);
+      if (project) {
+        const existingMemberIds = project.teamMembers.map(member => member.user.toString());
+        query._id = { $nin: existingMemberIds };
+      }
+    }
+
+    // Search functionality
+    if (search) {
+      query.$or = [
+        { firstName: { $regex: search, $options: 'i' } },
+        { lastName: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } },
+        { username: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    const users = await User.find(query)
+      .select('firstName lastName email username role')
+      .limit(20)
+      .sort({ firstName: 1, lastName: 1 });
+
+    res.json({
+      success: true,
+      users
+    });
+  } catch (error) {
+    console.error('Search team members error:', error);
+    res.status(500).json({
+      message: 'Server error'
+    });
+  }
+});
+
+// @route   GET /api/users/stats/overview
+// @desc    Get user statistics (managers only)
+// @access  Private (Managers only)
+router.get('/stats/overview', protect, authorize('manager'), async (req, res) => {
+  try {
+    const totalUsers = await User.countDocuments();
+    const activeUsers = await User.countDocuments({ isActive: true });
+    const managers = await User.countDocuments({ role: 'manager' });
+    const teamLeads = await User.countDocuments({ role: 'team_lead' });
+    const teamMembers = await User.countDocuments({ role: 'team_member' });
+
+    // Recent registrations
+    const recentUsers = await User.find()
+      .select('firstName lastName email role createdAt')
+      .sort({ createdAt: -1 })
+      .limit(5);
+
+    res.json({
+      success: true,
+      stats: {
+        totalUsers,
+        activeUsers,
+        inactiveUsers: totalUsers - activeUsers,
+        managers,
+        teamLeads,
+        teamMembers
+      },
+      recentUsers
+    });
+  } catch (error) {
+    console.error('Get user stats error:', error);
+    res.status(500).json({
+      message: 'Server error'
+    });
+  }
+});
 // @route   GET /api/users
 // @desc    Get all users (for managers)
 // @access  Private (Managers only)
-router.get('/', protect, authorize('manager'), async (req, res) => {
+router.get('/', protect, async (req, res) => {
   try {
     const { page = 1, limit = 10, role, search, isActive } = req.query;
     const skip = (page - 1) * limit;
@@ -237,87 +319,6 @@ router.delete('/:id', protect, authorize('manager'), async (req, res) => {
   }
 });
 
-// @route   GET /api/users/search/team-members
-// @desc    Search for team members (for project assignment)
-// @access  Private
-router.get('/search/team-members', protect, async (req, res) => {
-  try {
-    const { search, excludeProject } = req.query;
 
-    let query = { isActive: true };
-
-    // Exclude users already in a specific project
-    if (excludeProject) {
-      const Project = require('../models/Project');
-      const project = await Project.findById(excludeProject);
-      if (project) {
-        const existingMemberIds = project.teamMembers.map(member => member.user.toString());
-        query._id = { $nin: existingMemberIds };
-      }
-    }
-
-    // Search functionality
-    if (search) {
-      query.$or = [
-        { firstName: { $regex: search, $options: 'i' } },
-        { lastName: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
-        { username: { $regex: search, $options: 'i' } }
-      ];
-    }
-
-    const users = await User.find(query)
-      .select('firstName lastName email username role')
-      .limit(20)
-      .sort({ firstName: 1, lastName: 1 });
-
-    res.json({
-      success: true,
-      users
-    });
-  } catch (error) {
-    console.error('Search team members error:', error);
-    res.status(500).json({
-      message: 'Server error'
-    });
-  }
-});
-
-// @route   GET /api/users/stats/overview
-// @desc    Get user statistics (managers only)
-// @access  Private (Managers only)
-router.get('/stats/overview', protect, authorize('manager'), async (req, res) => {
-  try {
-    const totalUsers = await User.countDocuments();
-    const activeUsers = await User.countDocuments({ isActive: true });
-    const managers = await User.countDocuments({ role: 'manager' });
-    const teamLeads = await User.countDocuments({ role: 'team_lead' });
-    const teamMembers = await User.countDocuments({ role: 'team_member' });
-
-    // Recent registrations
-    const recentUsers = await User.find()
-      .select('firstName lastName email role createdAt')
-      .sort({ createdAt: -1 })
-      .limit(5);
-
-    res.json({
-      success: true,
-      stats: {
-        totalUsers,
-        activeUsers,
-        inactiveUsers: totalUsers - activeUsers,
-        managers,
-        teamLeads,
-        teamMembers
-      },
-      recentUsers
-    });
-  } catch (error) {
-    console.error('Get user stats error:', error);
-    res.status(500).json({
-      message: 'Server error'
-    });
-  }
-});
 
 module.exports = router; 

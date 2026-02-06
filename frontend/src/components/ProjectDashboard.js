@@ -69,7 +69,12 @@ const ProjectDashboard = ({ currentUser, onLogout }) => {
     const managerId = project.managerId || project.manager?._id;
     return currentUser?.role === 'manager' && managerId === userId;
   };
-
+ // Add this new function (same file)
+const canViewTeam = (project) => {
+  const userId = currentUser?.id || currentUser?._id;
+  return currentUser?.role === 'manager' || 
+         canViewProject(project);  // Team members can view team page
+};
 
   const canEditProject = (project) => {
     const userId = currentUser?.id || currentUser?._id;
@@ -84,14 +89,32 @@ const ProjectDashboard = ({ currentUser, onLogout }) => {
     return currentUser?.role === 'manager';
   };
 
-  const canViewProject = (project) => {
-    const userId = currentUser?.id || currentUser?._id;
-    return currentUser?.role === 'manager' ||
-      (project.teamMembers || []).some(member =>
-        (member.id || member._id || member.user?._id) === userId
-      ) ||
-      (project.teamLead?._id || project.teamLead) === userId;
-  };
+  // const canViewProject = (project) => {
+  //   const userId = currentUser?.id || currentUser?._id;
+  //   return currentUser?.role === 'manager' ||
+  //     (project.teamMembers || []).some(member =>
+  //       (member.id || member._id || member.user?._id) === userId
+  //     ) ||
+  //     (project.teamLead?._id || project.teamLead) === userId;
+  // };
+const canViewProject = (project) => {
+  const userId = currentUser?.id || currentUser?._id;
+  
+  // Manager sees everything
+  if (currentUser?.role === 'manager') return true;
+  
+  // Team lead check
+  const teamLeadId = project.teamLead?.id || project.teamLead?._id;
+  if (teamLeadId === userId) return true;
+  
+  // Team member check - CRITICAL FIX
+  return project.teamMembers?.some(member => {
+    const memberUserId = member.user?.id || member.user?._id;
+    return memberUserId === userId;
+  });
+};
+
+
   // ✅ NEW: Long Press Handler (2s)
   const handleLongPress = useCallback((projectId) => {
     setSelectionMode(true);
@@ -430,14 +453,15 @@ const ProjectDashboard = ({ currentUser, onLogout }) => {
                   <div className="project-actions">
                     {!selectionMode && (
                       <>
-                        <Link to={`/project/${project.id}`} className="view-btn">
-                          View Details
-                        </Link>
-                        {canManageProject(project) && (
-                          <Link to={`/project/team/${project.id}`} className="team-btn">
-                            Manage Team
-                          </Link>
-                        )}
+                         <Link to={`/project/${project.id}`} className="view-btn">
+      View Details
+    </Link>
+    {canViewTeam(project) && (  // ✅ Team members see "View Team"
+      <Link to={`/project/team/${project.id}`} className="team-btn">
+        {currentUser?.role === 'manager' ? 'Manage Team' : 'View Team'}
+        {/* Dynamic label! */}
+      </Link>
+    )}
                       </>
                     )}
                   </div>

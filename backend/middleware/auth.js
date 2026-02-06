@@ -40,15 +40,33 @@ const protect = async (req, res, next) => {
 };
 
 // Authorize roles
+// const authorize = (...roles) => {
+//   return (req, res, next) => {
+//     if (!req.user) {
+//       return res.status(401).json({ message: 'Not authorized' });
+//     }
+
+//     if (!roles.includes(req.user.role)) {
+//       return res.status(403).json({
+//         message: `User role ${req.user.role} is not authorized to access this route`
+//       });
+//     }
+
+//     next();
+//   };
+// };
 const authorize = (...roles) => {
   return (req, res, next) => {
     if (!req.user) {
       return res.status(401).json({ message: 'Not authorized' });
     }
 
-    if (!roles.includes(req.user.role)) {
-      return res.status(403).json({
-        message: `User role ${req.user.role} is not authorized to access this route`
+    // ✅ FIXED: Handle single role OR array of roles
+    const allowedRoles = Array.isArray(roles[0]) ? roles[0] : roles;
+    
+    if (!allowedRoles.includes(req.user.role)) {
+      return res.status(403).json({ 
+        message: `User role ${req.user.role} is not authorized to access this route` 
       });
     }
 
@@ -60,10 +78,8 @@ const authorize = (...roles) => {
 // middleware/auth.js - FIX isProjectManagerOrLead
 const isProjectManagerOrLead = async (req, res, next) => {
   try {
-
-
-    // . FIX: Check BODY first, then params
-    const projectId = req.body.projectId || req.params.projectId || req.params.id;
+    // ✅ ALWAYS use req.params.id for route params
+    const projectId = req.params.id;
     const userId = req.user._id.toString();
 
     if (!projectId) {
@@ -71,35 +87,53 @@ const isProjectManagerOrLead = async (req, res, next) => {
     }
 
     const Project = require('../models/Project');
-    const project = await Project.findById(projectId);
+    const project = await Project.findById(projectId)
+      .populate('manager', 'firstName lastName email')  // Always populate for consistency
+      .populate('teamLead', 'firstName lastName email');
 
     if (!project) {
       return res.status(404).json({ message: 'Project not found' });
     }
 
+    // ✅ Manager check - handles both ObjectId & populated User
+    const managerId = project.manager?._id?.toString() || 
+                     project.manager?.toString() || 
+                     project.manager;
+    
+    const isManager = managerId === userId;
 
+    // ✅ Team Lead check - handles both ObjectId & populated User
+    const teamLeadId = project.teamLead?._id?.toString() || 
+                      project.teamLead?.toString() || 
+                      project.teamLead;
+    
+    const isTeamLead = teamLeadId === userId;
 
-    // Check manager (handle ObjectId or populated User)
-    const managerId = project.manager?._id?.toString() || project.manager?.toString();
-    if (managerId === userId) {
-      return next();
-    }
+    // console.log('🔍 Permission Check:', { 
+    //   userId, 
+    //   managerId, 
+    //   isManager, 
+    //   teamLeadId, 
+    //   isTeamLead 
+    // });
 
-    // Check team lead
-    if (project.teamLead?.toString() === userId) {
+    if (isManager || isTeamLead) {
       return next();
     }
 
     return res.status(403).json({
       message: 'Not project manager or team lead',
       userId,
-      managerId
+      managerId: managerId || 'none',
+      teamLeadId: teamLeadId || 'none'
     });
+
   } catch (error) {
     console.error('🚨 isProjectManagerOrLead ERROR:', error);
     return res.status(500).json({ message: 'Server error' });
   }
 };
+
 
 
 // Check if user is project manager
@@ -229,7 +263,7 @@ const isTaskAssigneeOrCreator = async (req, res, next) => {
 
     // ✅ CRITICAL: ObjectId VALIDATION FIRST!
     if (!mongoose.Types.ObjectId.isValid(taskId)) {
-      console.log('❌ Invalid ObjectId:', taskId);
+      // console.log('❌ Invalid ObjectId:', taskId);
       return res.status(400).json({ 
         message: 'Invalid task ID format',
         received: taskId 

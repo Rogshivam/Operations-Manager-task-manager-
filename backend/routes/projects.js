@@ -192,7 +192,7 @@ router.get('/:id', protect, async (req, res) => {
 // @route   PUT /api/projects/:id
 // @desc    Update project
 // @access  Private (Project manager only)
-router.put('/:id', protect, isProjectManager, [
+router.put('/:id', protect, isProjectManagerOrLead , [
   body('name').optional().notEmpty().isLength({ max: 100 }),
   body('description').optional().notEmpty().isLength({ max: 1000 }),
   body('priority').optional().isIn(['low', 'medium', 'high']),
@@ -312,8 +312,8 @@ router.delete('/:id', protect, isProjectManager, async (req, res) => {
 
 // @route   POST /api/projects/:id/team-members
 // @desc    Add team member to project
-// @access  Private (Project manager only)
-router.post('/:id/team', protect, isProjectManager, [
+// @access  Private (Project manager or team lead only)
+router.post('/:id/team', protect, isProjectManagerOrLead, [
   body('userId').isMongoId().withMessage('Valid user ID is required'),
   body('role').isIn(['team_lead', 'team_member']).withMessage('Invalid role')
 ], async (req, res) => {
@@ -374,8 +374,8 @@ router.post('/:id/team', protect, isProjectManager, [
 
 // @route   DELETE /api/projects/:id/team-members/:userId
 // @desc    Remove team member from project
-// @access  Private (Project manager only)
-router.delete('/:id/team/:userId', protect, isProjectManager, async (req, res) => {
+// @access  Private (Project manager or teamlead only)
+router.delete('/:id/team/:userId', protect, isProjectManagerOrLead, async (req, res) => {
   try {
     const { userId } = req.params;
 
@@ -392,9 +392,14 @@ router.delete('/:id/team/:userId', protect, isProjectManager, async (req, res) =
     );
 
     // If removed user was team lead, clear team lead
-    if (project.teamLead && project.teamLead.toString() === userId) {
-      project.teamLead = null;
-    }
+    project.teamMembers = project.teamMembers.filter(
+  member => (member._id || member.id).toString() !== userId
+);
+
+// Clear team lead if it was this membership
+if (project.teamLead && project.teamLead.toString() === userId) {
+  project.teamLead = null;
+}
 
     await project.save();
 
@@ -411,6 +416,23 @@ router.delete('/:id/team/:userId', protect, isProjectManager, async (req, res) =
       message: 'Server error'
     });
   }
+});
+// GET /api/projects/:id/available-users
+router.get('/:id/available-users', protect, isProjectManagerOrLead, async (req, res) => {
+  const project = await Project.findById(req.params.id);
+
+  const excludedIds = [
+    project.manager,
+    project.teamLead,
+    ...project.teamMembers.map(m => m.user)
+  ];
+
+  const users = await User.find({
+    _id: { $nin: excludedIds },
+    role: { $ne: 'manager' } // optional
+  }).select('firstName lastName email role');
+
+  res.json({ users });
 });
 
 module.exports = router; 
