@@ -1,0 +1,34 @@
+services:
+  backend:
+    image: shivamdevthakur/opmanager-backend:latest
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: opmanager-backend
+    ports:
+      - "5000:5000"
+    env_file:
+      - ./backend/.env
+    environment:
+      - NODE_ENV=production
+    networks:
+      - opmanager
+
+  frontend:
+    image: shivamdevthakur/opmanager-frontend:latest
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: opmanager-frontend
+    ports:
+      - "3000:4173"
+    env_file:
+      - ./frontend/.env
+    environment:
+      - NODE_ENV=production
+    networks:
+      - opmanager
+
+networks:
+  opmanager:
+    driver: bridge
